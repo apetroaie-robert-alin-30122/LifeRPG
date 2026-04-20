@@ -1,0 +1,7 @@
+query GetPlaceholder {
+    me(token: "0") {
+        username
+        level
+        experience
+    }
+}

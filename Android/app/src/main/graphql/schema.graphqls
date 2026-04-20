@@ -1,0 +1,20 @@
+type Query {
+    me(token: String!): UserProfile
+}
+
+type Mutation {
+    register(email: String!, password: String!, username: String!): AuthResponse
+    login(email: String!, password: String!): AuthResponse
+}
+
+type UserProfile {
+    username: String!
+    level: Int!
+    experience: Int!
+}
+
+type AuthResponse {
+    success: Boolean!
+    message: String!
+    token: String
+}
