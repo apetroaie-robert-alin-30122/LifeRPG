@@ -66,6 +66,14 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.animated.vector.drawable)
     implementation(libs.androidx.compose.runtime)
+    implementation("com.apollographql.apollo:apollo-runtime:4.4.3")
+    implementation("androidx.activity:activity-ktx:1.13.0")
+    implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.navigation:navigation-compose:2.9.7")
+    implementation("androidx.core:core:1.15.0")
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -73,12 +81,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    implementation("com.apollographql.apollo:apollo-runtime:4.4.3")
-    implementation("androidx.activity:activity-ktx:1.13.0")
-    implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.navigation:navigation-compose:2.9.7")
-    implementation("androidx.core:core:1.15.0")
-    implementation("androidx.core:core-ktx:1.15.0")
+
 }
 
 apollo {
