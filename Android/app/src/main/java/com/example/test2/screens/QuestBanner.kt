@@ -1,6 +1,9 @@
 package com.example.test2.screens
 
 import android.content.*
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -9,9 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.example.test2.WalkingService
+import com.example.test2.services.JoggingService
+import com.example.test2.services.WalkingService
 import com.example.test2.quests.Quest
 import com.example.test2.quests.QuestType
+import com.example.test2.services.PushUpService
+import com.example.test2.services.SitUpService
 import com.example.test2.viewmodel.QuestViewModel
 
 @Composable
@@ -20,7 +26,8 @@ fun QuestBanner(
     questViewModel: QuestViewModel
 ) {
     val context = LocalContext.current
-    var showDialog by remember { mutableStateOf(false) }
+    var showStartDialog by remember { mutableStateOf(false) }
+    var showCompleteDialog by remember { mutableStateOf(false) }
     val allProgress by questViewModel.progress.collectAsState()
     val questProgress = allProgress[quest.id]
     val isActive = questProgress?.isActive == true
@@ -28,22 +35,63 @@ fun QuestBanner(
     val current = questProgress?.current ?: 0f
     val progress = (current / quest.target).coerceIn(0f, 1f)
 
-    // Broadcasts for this quest type
+    val isPhysical = quest.type in listOf(
+        QuestType.WALKING, QuestType.JOGGING, QuestType.SITUPS, QuestType.PUSHUPS
+    )
+
+    val inputValues = remember { quest.inputFields.associateWith { mutableStateOf("") } }
+
+    // Camera setup
+    var photoUri by remember { mutableStateOf<Uri?>(null) }
+    var photoCaptured by remember { mutableStateOf(false) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            photoCaptured = true
+            showCompleteDialog = true
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            val uri = createPhotoUri(context, quest.id)
+            photoUri = uri
+            cameraLauncher.launch(uri)
+        }
+    }
+
     DisposableEffect(quest.id) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 when (intent.action) {
-                    "WALK_PROGRESS" -> {
-                        val distance = intent.getFloatExtra("distance", 0f)
-                        questViewModel.updateProgress(quest.id, distance)
-                    }
-                    "WALK_COMPLETE" -> questViewModel.completeQuest(quest.id)
+                    "WALK_PROGRESS" -> if (quest.type == QuestType.WALKING)
+                        questViewModel.updateProgress(quest.id, intent.getFloatExtra("distance", 0f))
+                    "WALK_COMPLETE" -> if (quest.type == QuestType.WALKING)
+                        questViewModel.completeQuest(quest.id)
+                    "JOG_PROGRESS" -> if (quest.type == QuestType.JOGGING)
+                        questViewModel.updateProgress(quest.id, intent.getFloatExtra("distance", 0f))
+                    "JOG_COMPLETE" -> if (quest.type == QuestType.JOGGING)
+                        questViewModel.completeQuest(quest.id)
+                    "SITUP_PROGRESS" -> if (quest.type == QuestType.SITUPS)
+                        questViewModel.updateProgress(quest.id, intent.getIntExtra("reps", 0).toFloat())
+                    "SITUP_COMPLETE" -> if (quest.type == QuestType.SITUPS)
+                        questViewModel.completeQuest(quest.id)
+                    "PUSHUP_PROGRESS" -> if (quest.type == QuestType.PUSHUPS)
+                        questViewModel.updateProgress(quest.id, intent.getIntExtra("reps", 0).toFloat())
+                    "PUSHUP_COMPLETE" -> if (quest.type == QuestType.PUSHUPS)
+                        questViewModel.completeQuest(quest.id)
                 }
             }
         }
         val filter = IntentFilter().apply {
-            addAction("WALK_PROGRESS")
-            addAction("WALK_COMPLETE")
+            addAction("WALK_PROGRESS"); addAction("WALK_COMPLETE")
+            addAction("JOG_PROGRESS"); addAction("JOG_COMPLETE")
+            addAction("SITUP_PROGRESS"); addAction("SITUP_COMPLETE")
+            addAction("PUSHUP_PROGRESS"); addAction("PUSHUP_COMPLETE")
         }
         context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
         onDispose { context.unregisterReceiver(receiver) }
@@ -54,7 +102,18 @@ fun QuestBanner(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        onClick = { if (!isActive && !isComplete) showDialog = true }
+        onClick = {
+            when {
+                isComplete -> showStartDialog = true
+                isActive && isPhysical -> { /* physical quests complete themselves */ }
+                isActive && quest.type == QuestType.PHOTO -> {
+                    // Retake photo
+                    cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                }
+                isActive && !isPhysical -> showCompleteDialog = true
+                else -> showStartDialog = true
+            }
+        }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -65,49 +124,135 @@ fun QuestBanner(
                     text = if (isComplete) "✓ ${quest.title}" else quest.title,
                     style = MaterialTheme.typography.titleMedium
                 )
-                if (isActive) {
-                    Text("Active", style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary)
+                when {
+                    isComplete -> Text(
+                        "Done",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    isActive -> Text(
+                        "Active",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
                 }
             }
             Spacer(Modifier.height(4.dp))
             Text(quest.description, style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxWidth()
-            )
+            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(4.dp))
+            val displayCurrent = if (isComplete && (quest.type == QuestType.HONOR
+                        || quest.type == QuestType.PHOTO)) quest.target else current
             Text(
-                text = "${current.toInt()} / ${quest.target.toInt()} ${quest.unit}",
+                text = "${displayCurrent.toInt()} / ${quest.target.toInt()} ${quest.unit}",
                 style = MaterialTheme.typography.bodySmall
             )
         }
     }
 
-    if (showDialog) {
+    // Start dialog
+    if (showStartDialog) {
         AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Start Quest?") },
+            onDismissRequest = { showStartDialog = false },
+            title = { Text(if (isComplete) "Restart Quest?" else "Start Quest?") },
             text = { Text(quest.description) },
             confirmButton = {
                 TextButton(onClick = {
-                    showDialog = false
+                    showStartDialog = false
+                    questViewModel.resetQuest(quest.id)
                     questViewModel.startQuest(quest.id)
-                    launchQuestService(context, quest.type)
-                }) { Text("Start") }
+                    when (quest.type) {
+                        QuestType.WALKING, QuestType.JOGGING,
+                        QuestType.SITUPS, QuestType.PUSHUPS ->
+                            launchQuestService(context, quest.type)
+                        QuestType.PHOTO ->
+                            cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                        else -> {}
+                    }
+                }) { Text(if (isComplete) "Restart" else "Start") }
             },
             dismissButton = {
-                TextButton(onClick = { showDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showStartDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // Completion dialog — honor quests and photo confirmation
+    if (showCompleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showCompleteDialog = false },
+            title = { Text("Complete Quest?") },
+            text = {
+                Column {
+                    if (quest.type == QuestType.PHOTO && photoCaptured) {
+                        Text("Photo taken! Mark this quest as complete?")
+                    } else {
+                        Text("Confirm that you've completed: ${quest.title}")
+                    }
+                    if (quest.requiresInput) {
+                        Spacer(Modifier.height(12.dp))
+                        quest.inputFields.forEach { field ->
+                            val state = inputValues[field] ?: return@forEach
+                            OutlinedTextField(
+                                value = state.value,
+                                onValueChange = { state.value = it },
+                                label = { Text(field) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCompleteDialog = false
+                    if (quest.requiresInput) {
+                        questViewModel.saveInputs(
+                            quest.id,
+                            inputValues.mapValues { it.value.value }
+                        )
+                    }
+                    if (quest.type == QuestType.PHOTO) {
+                        questViewModel.saveInputs(
+                            quest.id,
+                            mapOf("photoUri" to (photoUri?.toString() ?: ""))
+                        )
+                    }
+                    questViewModel.completeQuest(quest.id)
+                    photoCaptured = false
+                }) { Text("Complete") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showCompleteDialog = false
+                    photoCaptured = false
+                }) { Text("Cancel") }
             }
         )
     }
 }
 
+private fun createPhotoUri(context: Context, questId: String): Uri {
+    val photoFile = java.io.File(
+        context.cacheDir.resolve("photos").also { it.mkdirs() },
+        "quest_${questId}_${System.currentTimeMillis()}.jpg"
+    )
+    return androidx.core.content.FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        photoFile
+    )
+}
+
 private fun launchQuestService(context: Context, type: QuestType) {
     val serviceIntent = when (type) {
-        QuestType.WALKING -> Intent(context, WalkingService::class.java)
-        // Future types: QuestType.RUNNING -> Intent(context, RunningService::class.java)
+        QuestType.WALKING -> Intent(context, com.example.test2.services.WalkingService::class.java)
+        QuestType.JOGGING -> Intent(context, com.example.test2.services.JoggingService::class.java)
+        QuestType.SITUPS -> Intent(context, com.example.test2.services.SitUpService::class.java)
+        QuestType.PUSHUPS -> Intent(context, com.example.test2.services.PushUpService::class.java)
+        else -> return
     }
     ContextCompat.startForegroundService(context, serviceIntent)
 }

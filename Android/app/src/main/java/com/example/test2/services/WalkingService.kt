@@ -1,5 +1,6 @@
-package com.example.test2
+package com.example.test2.services
 
+import android.R
 import android.app.*
 import android.content.Intent
 import android.location.Location
@@ -53,7 +54,7 @@ class WalkingService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Walking Quest")
             .setContentText("${distance.toInt()}m / 250m")
-            .setSmallIcon(android.R.drawable.ic_dialog_map)
+            .setSmallIcon(R.drawable.ic_dialog_map)
             .setProgress(100, progress, false)
             .setOngoing(true)
             .build()
@@ -75,7 +76,7 @@ class WalkingService : Service() {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Quest Complete!")
             .setContentText("You walked 250 meters!")
-            .setSmallIcon(android.R.drawable.star_big_on)
+            .setSmallIcon(R.drawable.star_big_on)
             .setAutoCancel(true)
             .build()
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager

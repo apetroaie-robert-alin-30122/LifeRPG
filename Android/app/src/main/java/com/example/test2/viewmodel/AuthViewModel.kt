@@ -8,7 +8,7 @@ import com.example.test2.MeQuery
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import com.example.test2.ApolloClientInstance
+import com.example.test2.services.ApolloClientInstance
 
 data class UserProfile(val username: String, val level: Int, val experience: Int)
 
@@ -23,6 +23,9 @@ class AuthViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
+    private val _navigateToProfile = MutableStateFlow(false)
+    val navigateToProfile: StateFlow<Boolean> = _navigateToProfile
+
     fun register(email: String, password: String, username: String) {
         viewModelScope.launch {
             val response = ApolloClientInstance.client
@@ -31,6 +34,8 @@ class AuthViewModel : ViewModel() {
             val result = response.data?.register
             if (result?.success == true) {
                 _token.value = result.token
+                fetchProfile()
+                _navigateToProfile.value = true
             } else {
                 _error.value = result?.message
             }
@@ -45,6 +50,8 @@ class AuthViewModel : ViewModel() {
             val result = response.data?.login
             if (result?.success == true) {
                 _token.value = result.token
+                fetchProfile()
+                _navigateToProfile.value = true
             } else {
                 _error.value = result?.message
             }
@@ -66,5 +73,13 @@ class AuthViewModel : ViewModel() {
                 )
             }
         }
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
+
+    fun resetNavigation() {
+        _navigateToProfile.value = false
     }
 }

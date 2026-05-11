@@ -10,6 +10,9 @@ import androidx.compose.ui.unit.dp
 import com.example.test2.quests.QuestRepository
 import com.example.test2.viewmodel.AuthViewModel
 import com.example.test2.viewmodel.QuestViewModel
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.PaddingValues
 
 @Composable
 fun ProfileScreen(
@@ -18,21 +21,33 @@ fun ProfileScreen(
 ) {
     val profile by authViewModel.profile.collectAsState()
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        if (profile == null) {
+    if (profile == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
-        } else {
-            Text(profile!!.username, style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(8.dp))
-            Text("Level ${profile!!.level}", style = MaterialTheme.typography.titleLarge)
-            Text("XP: ${profile!!.experience}", style = MaterialTheme.typography.bodyLarge)
-            Spacer(Modifier.height(24.dp))
-            Text("Quests", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
-            QuestRepository.all.forEach { quest ->
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(vertical = 24.dp)
+        ) {
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(profile!!.username, style = MaterialTheme.typography.headlineLarge)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Level ${profile!!.level}", style = MaterialTheme.typography.titleLarge)
+                    Text("XP: ${profile!!.experience}", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.height(24.dp))
+                    Text("Quests", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+
+            items(QuestRepository.all) { quest ->
                 QuestBanner(quest = quest, questViewModel = questViewModel)
             }
         }

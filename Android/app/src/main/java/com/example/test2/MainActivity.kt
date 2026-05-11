@@ -38,16 +38,18 @@ class MainActivity : ComponentActivity() {
 
             NavHost(navController, startDestination = "login") {
                 composable("login") {
-                    LoginScreen(viewModel, onNavigateToRegister = { navController.navigate("register") })
-                    LaunchedEffect(token) {
-                        if (token != null) navController.navigate("profile") { popUpTo(0) }
-                    }
+                    LoginScreen(
+                        viewModel = viewModel,
+                        onNavigateToRegister = { navController.navigate("register") },
+                        onNavigateToProfile = { navController.navigate("profile") { popUpTo(0) } }
+                    )
                 }
                 composable("register") {
-                    RegisterScreen(viewModel, onNavigateToLogin = { navController.popBackStack() })
-                    LaunchedEffect(token) {
-                        if (token != null) navController.navigate("profile") { popUpTo(0) }
-                    }
+                    RegisterScreen(
+                        viewModel = viewModel,
+                        onNavigateToLogin = { navController.popBackStack() },
+                        onNavigateToProfile = { navController.navigate("profile") { popUpTo(0) } }
+                    )
                 }
 
                 composable("profile") {

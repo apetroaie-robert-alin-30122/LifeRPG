@@ -10,34 +10,68 @@ import androidx.compose.ui.unit.dp
 import com.example.test2.viewmodel.AuthViewModel
 
 @Composable
-fun RegisterScreen(viewModel: AuthViewModel, onNavigateToLogin: () -> Unit) {
+fun RegisterScreen(viewModel: AuthViewModel, onNavigateToLogin: () -> Unit, onNavigateToProfile: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     val error by viewModel.error.collectAsState()
+    val navigateToProfile by viewModel.navigateToProfile.collectAsState()
+
+    LaunchedEffect(navigateToProfile) {
+        if (navigateToProfile) {
+            viewModel.resetNavigation()
+            onNavigateToProfile()
+        }
+    }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
         verticalArrangement = Arrangement.Center
     ) {
         Text("Create Account", style = MaterialTheme.typography.headlineLarge)
         Spacer(Modifier.height(32.dp))
 
-        OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("Username") })
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it; viewModel.clearError() },
+            label = { Text("Username") },
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") })
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it; viewModel.clearError() },
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = password, onValueChange = { password = it },
-            label = { Text("Password") }, visualTransformation = PasswordVisualTransformation())
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it; viewModel.clearError() },
+            label = { Text("Password") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(Modifier.height(16.dp))
 
-        Button(onClick = { viewModel.register(email, password, username) }, modifier = Modifier.fillMaxWidth()) {
+        Button(
+            onClick = { viewModel.register(email, password, username) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text("Register")
         }
-        TextButton(onClick = onNavigateToLogin) {
+        TextButton(onClick = {
+            viewModel.clearError()
+            onNavigateToLogin()
+        }) {
             Text("Already have an account? Login")
         }
 
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        error?.let {
+            Spacer(Modifier.height(8.dp))
+            Text(it, color = MaterialTheme.colorScheme.error)
+        }
     }
 }

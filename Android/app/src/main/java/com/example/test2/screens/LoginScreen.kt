@@ -10,37 +10,60 @@ import androidx.compose.ui.unit.dp
 import com.example.test2.viewmodel.AuthViewModel
 
 @Composable
-fun LoginScreen(viewModel: AuthViewModel, onNavigateToRegister: () -> Unit) {
+fun LoginScreen(viewModel: AuthViewModel, onNavigateToRegister: () -> Unit, onNavigateToProfile: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    val token by viewModel.token.collectAsState()
     val error by viewModel.error.collectAsState()
+    val navigateToProfile by viewModel.navigateToProfile.collectAsState()
 
-    if (token != null) {
-        // Navigate to profile once logged in
-        LaunchedEffect(token) { viewModel.fetchProfile() }
+    LaunchedEffect(navigateToProfile) {
+        if (navigateToProfile) {
+            viewModel.resetNavigation()
+            onNavigateToProfile()
+        }
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
         verticalArrangement = Arrangement.Center
     ) {
         Text("LifeRPG", style = MaterialTheme.typography.headlineLarge)
         Spacer(Modifier.height(32.dp))
 
-        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") })
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it; viewModel.clearError() },
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = password, onValueChange = { password = it },
-            label = { Text("Password") }, visualTransformation = PasswordVisualTransformation())
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it; viewModel.clearError() },
+            label = { Text("Password") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(Modifier.height(16.dp))
 
-        Button(onClick = { viewModel.login(email, password) }, modifier = Modifier.fillMaxWidth()) {
+        Button(
+            onClick = { viewModel.login(email, password) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text("Login")
         }
-        TextButton(onClick = onNavigateToRegister) {
+        TextButton(onClick = {
+            viewModel.clearError()
+            onNavigateToRegister()
+        }) {
             Text("No account? Register")
         }
 
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        error?.let {
+            Spacer(Modifier.height(8.dp))
+            Text(it, color = MaterialTheme.colorScheme.error)
+        }
     }
 }
