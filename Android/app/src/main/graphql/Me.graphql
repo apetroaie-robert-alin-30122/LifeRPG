@@ -3,5 +3,6 @@ query Me($token: String!) {
         username
         level
         experience
+        xpForNextLevel
     }
 }

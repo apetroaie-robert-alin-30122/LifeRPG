@@ -20,6 +20,14 @@ fun ProfileScreen(
     questViewModel: QuestViewModel
 ) {
     val profile by authViewModel.profile.collectAsState()
+    val leveledUp by authViewModel.leveledUp.collectAsState()
+
+    if (leveledUp) {
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(3000)
+            authViewModel.clearLevelUp()
+        }
+    }
 
     if (profile == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -40,7 +48,51 @@ fun ProfileScreen(
                     Text(profile!!.username, style = MaterialTheme.typography.headlineLarge)
                     Spacer(Modifier.height(8.dp))
                     Text("Level ${profile!!.level}", style = MaterialTheme.typography.titleLarge)
-                    Text("XP: ${profile!!.experience}", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.height(8.dp))
+
+                    // Calculate XP progress within current level
+                    val xpForNextLevel = profile!!.xpForNextLevel
+                    val xpIntoLevel = run {
+                        var accumulated = 0
+                        var xpRequired = 100
+                        for (i in 1 until profile!!.level) {
+                            accumulated += xpRequired
+                            xpRequired = (xpRequired * 1.2).toInt()
+                        }
+                        profile!!.experience - accumulated
+                    }
+                    val progressFraction = (xpIntoLevel.toFloat() / xpForNextLevel).coerceIn(0f, 1f)
+
+                    LinearProgressIndicator(
+                        progress = { progressFraction },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "$xpIntoLevel / $xpForNextLevel XP",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        )
+                    }
+
+                    if (leveledUp) {
+                        Spacer(Modifier.height(8.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "🎉 Level Up! You're now level ${profile!!.level}!",
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+
                     Spacer(Modifier.height(24.dp))
                     Text("Quests", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
@@ -48,7 +100,11 @@ fun ProfileScreen(
             }
 
             items(QuestRepository.all) { quest ->
-                QuestBanner(quest = quest, questViewModel = questViewModel)
+                QuestBanner(
+                    quest = quest,
+                    questViewModel = questViewModel,
+                    authViewModel = authViewModel
+                )
             }
         }
     }

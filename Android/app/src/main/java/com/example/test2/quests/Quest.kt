@@ -15,6 +15,7 @@ data class Quest(
     val target: Float,
     val unit: String,
     val type: QuestType,
+    val xpReward: Int,
     val requiresInput: Boolean = false,
     val inputFields: List<String> = emptyList()
 )

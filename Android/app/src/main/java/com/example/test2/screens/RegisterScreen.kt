@@ -14,7 +14,9 @@ fun RegisterScreen(viewModel: AuthViewModel, onNavigateToLogin: () -> Unit, onNa
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
-    val error by viewModel.error.collectAsState()
+    val emailError by viewModel.emailError.collectAsState()
+    val passwordError by viewModel.passwordError.collectAsState()
+    val usernameError by viewModel.usernameError.collectAsState()
     val navigateToProfile by viewModel.navigateToProfile.collectAsState()
 
     LaunchedEffect(navigateToProfile) {
@@ -35,25 +37,45 @@ fun RegisterScreen(viewModel: AuthViewModel, onNavigateToLogin: () -> Unit, onNa
 
         OutlinedTextField(
             value = username,
-            onValueChange = { username = it; viewModel.clearError() },
+            onValueChange = { username = it; viewModel.clearUsernameError() },
             label = { Text("Username") },
+            isError = usernameError != null,
             modifier = Modifier.fillMaxWidth()
         )
+        usernameError?.let {
+            Text(it, color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(start = 4.dp, top = 2.dp))
+        }
         Spacer(Modifier.height(8.dp))
+
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it; viewModel.clearError() },
+            onValueChange = { email = it; viewModel.clearEmailError() },
             label = { Text("Email") },
+            isError = emailError != null,
             modifier = Modifier.fillMaxWidth()
         )
+        emailError?.let {
+            Text(it, color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(start = 4.dp, top = 2.dp))
+        }
         Spacer(Modifier.height(8.dp))
+
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it; viewModel.clearError() },
+            onValueChange = { password = it; viewModel.clearPasswordError() },
             label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
+            isError = passwordError != null,
             modifier = Modifier.fillMaxWidth()
         )
+        passwordError?.let {
+            Text(it, color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(start = 4.dp, top = 2.dp))
+        }
         Spacer(Modifier.height(16.dp))
 
         Button(
@@ -63,15 +85,10 @@ fun RegisterScreen(viewModel: AuthViewModel, onNavigateToLogin: () -> Unit, onNa
             Text("Register")
         }
         TextButton(onClick = {
-            viewModel.clearError()
+            viewModel.clearErrors()
             onNavigateToLogin()
         }) {
             Text("Already have an account? Login")
-        }
-
-        error?.let {
-            Spacer(Modifier.height(8.dp))
-            Text(it, color = MaterialTheme.colorScheme.error)
         }
     }
 }

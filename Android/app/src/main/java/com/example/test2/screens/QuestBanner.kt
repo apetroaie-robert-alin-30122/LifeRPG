@@ -18,12 +18,14 @@ import com.example.test2.quests.Quest
 import com.example.test2.quests.QuestType
 import com.example.test2.services.PushUpService
 import com.example.test2.services.SitUpService
+import com.example.test2.viewmodel.AuthViewModel
 import com.example.test2.viewmodel.QuestViewModel
 
 @Composable
 fun QuestBanner(
     quest: Quest,
-    questViewModel: QuestViewModel
+    questViewModel: QuestViewModel,
+    authViewModel: AuthViewModel
 ) {
     val context = LocalContext.current
     var showStartDialog by remember { mutableStateOf(false) }
@@ -70,20 +72,28 @@ fun QuestBanner(
                 when (intent.action) {
                     "WALK_PROGRESS" -> if (quest.type == QuestType.WALKING)
                         questViewModel.updateProgress(quest.id, intent.getFloatExtra("distance", 0f))
-                    "WALK_COMPLETE" -> if (quest.type == QuestType.WALKING)
+                    "WALK_COMPLETE" -> if (quest.type == QuestType.WALKING) {
                         questViewModel.completeQuest(quest.id)
+                        authViewModel.completeQuestAndAwardXP(quest.xpReward)
+                    }
                     "JOG_PROGRESS" -> if (quest.type == QuestType.JOGGING)
                         questViewModel.updateProgress(quest.id, intent.getFloatExtra("distance", 0f))
-                    "JOG_COMPLETE" -> if (quest.type == QuestType.JOGGING)
+                    "JOG_COMPLETE" -> if (quest.type == QuestType.JOGGING) {
                         questViewModel.completeQuest(quest.id)
+                        authViewModel.completeQuestAndAwardXP(quest.xpReward)
+                    }
                     "SITUP_PROGRESS" -> if (quest.type == QuestType.SITUPS)
                         questViewModel.updateProgress(quest.id, intent.getIntExtra("reps", 0).toFloat())
-                    "SITUP_COMPLETE" -> if (quest.type == QuestType.SITUPS)
+                    "SITUP_COMPLETE" -> if (quest.type == QuestType.SITUPS) {
                         questViewModel.completeQuest(quest.id)
+                        authViewModel.completeQuestAndAwardXP(quest.xpReward)
+                    }
                     "PUSHUP_PROGRESS" -> if (quest.type == QuestType.PUSHUPS)
                         questViewModel.updateProgress(quest.id, intent.getIntExtra("reps", 0).toFloat())
-                    "PUSHUP_COMPLETE" -> if (quest.type == QuestType.PUSHUPS)
+                    "PUSHUP_COMPLETE" -> if (quest.type == QuestType.PUSHUPS) {
                         questViewModel.completeQuest(quest.id)
+                        authViewModel.completeQuestAndAwardXP(quest.xpReward)
+                    }
                 }
             }
         }
@@ -221,6 +231,7 @@ fun QuestBanner(
                         )
                     }
                     questViewModel.completeQuest(quest.id)
+                    authViewModel.completeQuestAndAwardXP(quest.xpReward)
                     photoCaptured = false
                 }) { Text("Complete") }
             },

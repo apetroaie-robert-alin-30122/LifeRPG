@@ -27,6 +27,7 @@ class UserProfile:
     username: str
     level: int
     experience: int
+    xp_for_next_level: int
 
 @strawberry.type
 class AuthResponse:
@@ -57,7 +58,10 @@ class Query:
         conn.close()
         
         if row:
-            return UserProfile(username=row[0], level=row[1], experience=row[2])
+            level = row[1]
+            total_xp = row[2]
+            threshold = xp_for_level(level)
+            return UserProfile(username=row[0], level=level,  experience=total_xp, xp_for_next_level=threshold)
         return None
     
     @strawberry.field
@@ -70,6 +74,32 @@ class Query:
         
         return [Quest(id=row[0], title=row[1], description=row[2], xp_reward=row[3], category=row[4], difficulty=row[5], is_completed=bool(row[6])) for row in rows]
 
+@strawberry.type
+class CompleteQuestResponse:
+    username: str
+    level: int
+    experience: int
+    xp_gained: int
+    leveled_up: bool
+    xp_for_next_level: int
+
+def calculate_level(total_xp: int) -> int:
+    level = 1
+    xp_required = 100
+    accumulated = 0
+    
+    while accumulated + xp_required <= total_xp:
+        accumulated += xp_required
+        level += 1
+        xp_required = int(xp_required * 1.2)
+    
+    return level
+
+def xp_for_level(level: int) -> int:
+    xp_required = 100
+    for _ in range(level - 1):
+        xp_required = int(xp_required * 1.2)
+    return xp_required
 
 
 
@@ -78,84 +108,82 @@ class Query:
 class Mutation:
     @strawberry.mutation
     def register(self, email: str, password: str, username: str) -> AuthResponse:
+        conn = sqlite3.connect("lifequest.db")
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT id FROM accounts WHERE email = ?", (email,))
+        if cursor.fetchone():
+            conn.close()
+            return AuthResponse(success=False, message="email already exists.")
+        
+        cursor.execute("SELECT id FROM accounts WHERE username = ?", (username,))
+        if cursor.fetchone():
+            conn.close()
+            return AuthResponse(success=False, message="username already exists.")
+        
         try:
-            conn = sqlite3.connect("lifequest.db")
-            cursor = conn.cursor()
-            # Save in account
-            cursor.execute("INSERT INTO accounts (email, password, username) VALUES (?, ?, ?)", (email, password, username))
+            cursor.execute(
+                "INSERT INTO accounts (email, password, username) VALUES (?, ?, ?)",
+                (email, password, username)
+            )
             account_id = cursor.lastrowid
-            # Save in user
-            cursor.execute("INSERT INTO users (id, username, level, experience) VALUES (?, ?, ?, ?)", 
-                           (account_id, username, 1, 0))
+            cursor.execute(
+                "INSERT INTO users (id, username, level, experience) VALUES (?, ?, ?, ?)",
+                (account_id, username, 1, 0)
+            )
             conn.commit()
             conn.close()
             return AuthResponse(success=True, message="Cont creat cu succes!", token=str(account_id))
         except Exception as e:
-            return AuthResponse(success=False, message=f"Eroare: {str(e)}")
+           conn.close()
+           return AuthResponse(success=False, message=f"Eroare: {str(e)}") 
+
 
     @strawberry.mutation
     def login(self, email: str, password: str) -> AuthResponse:
         conn = sqlite3.connect("lifequest.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM accounts WHERE email = ? AND password = ?", (email, password))
+        cursor.execute("SELECT id, password FROM accounts WHERE email = ?", (email,))
         row = cursor.fetchone()
         conn.close()
         
-        if row:
-            return AuthResponse(success=True, message="Login reusit!", token=str(row[0]))
-        return AuthResponse(success=False, message="Email sau parola incorecta!")
+        if not row:
+            return AuthResponse(success=False, message="No account exists for this address.")
+        if row[1] != password:
+            return AuthResponse(success=False, message="Incorrect password.")
+        return AuthResponse(success=True, message="Login reusit!", token=str(row[0]))
 
     @strawberry.mutation
-    def complete_quest(self, user_id: int, quest_id: int) -> UserProfile:
+    def complete_quest(self, user_id: int, xp_reward: int) -> CompleteQuestResponse:
         conn = sqlite3.connect("lifequest.db")
         cursor = conn.cursor()
 
-    # Verificăm dacă quest-ul există și nu a fost deja completat
-        cursor.execute("SELECT difficulty, is_completed FROM quests WHERE id = ?", (quest_id,))
-        quest = cursor.fetchone()
-
-        if not quest or quest[1] == 1:
-            conn.close()
-            raise Exception("Quest-ul nu există sau a fost deja terminat!")
-        
-        # XP reward bazat pe dificultate
-        diff = quest[0]
-        if diff == "Easy":
-            xp_reward = 50
-        elif diff == "Medium":
-            xp_reward = 100
-        elif diff == "Hard":
-            xp_reward = 200
-        else:
-            xp_reward = 50
-        
-        # Cerem datele curente ale utilizatorului
         cursor.execute("SELECT username, level, experience FROM users WHERE id = ?", (user_id,))
         user = cursor.fetchone()
+        if not user:
+            conn.close()
+            raise Exception("User not found.")
+
         username, current_level, current_xp = user
+        new_total_xp = current_xp + xp_reward
+        new_level = calculate_level(new_total_xp)
+        leveled_up = new_level > current_level
 
-        # Calculam logica de level-up
-        # Formula: 1000 * ( 1.25 ^ (level - 1) )
-        new_xp = current_xp + xp_reward
-        new_level = current_level
-
-        # Verificăm dacă utilizatorul a crescut în nivel
-        xp_needed = int(1000 * (1.25 ** (new_level - 1)))
-
-        while new_xp >= xp_needed:
-            new_xp -= xp_needed
-            new_level += 1
-            # Recalculăm XP-ul necesar pentru următorul nivel
-            xp_needed = int(1000 * (1.25 ** (new_level - 1)))
-
-        # Salvăm noile date ale utilizatorului
-        cursor.execute("UPDATE users SET level = ?, experience = ? WHERE id = ?", (new_level, new_xp, user_id))
-        cursor.execute("UPDATE quests SET is_completed = 1 WHERE id = ?", (quest_id,))
-
+        cursor.execute(
+            "UPDATE users SET level = ?, experience = ? WHERE id = ?",
+            (new_level, new_total_xp, user_id)
+        )
         conn.commit()
         conn.close()
 
-        return UserProfile(username=username, level=new_level, experience=new_xp)
+        return CompleteQuestResponse(
+    username=username,
+    level=new_level,
+    experience=new_total_xp,
+    xp_gained=xp_reward,
+    leveled_up=leveled_up,
+    xp_for_next_level=xp_for_level(new_level)
+)
 
 
 # --- starting the server ---

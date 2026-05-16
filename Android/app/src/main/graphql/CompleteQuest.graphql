@@ -1,0 +1,10 @@
+mutation CompleteQuest($userId: Int!, $xpReward: Int!) {
+    completeQuest(userId: $userId, xpReward: $xpReward) {
+        username
+        level
+        experience
+        xpGained
+        leveledUp
+        xpForNextLevel
+    }
+}

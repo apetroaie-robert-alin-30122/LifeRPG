@@ -1,20 +1,42 @@
 type Query {
     me(token: String!): UserProfile
+    getQuests: [Quest!]!
 }
 
 type Mutation {
     register(email: String!, password: String!, username: String!): AuthResponse
     login(email: String!, password: String!): AuthResponse
+    completeQuest(userId: Int!, xpReward: Int!): CompleteQuestResponse
 }
 
 type UserProfile {
     username: String!
     level: Int!
     experience: Int!
+    xpForNextLevel: Int!
 }
 
 type AuthResponse {
     success: Boolean!
     message: String!
     token: String
+}
+
+type CompleteQuestResponse {
+    username: String!
+    level: Int!
+    experience: Int!
+    xpGained: Int!
+    leveledUp: Boolean!
+    xpForNextLevel: Int!
+}
+
+type Quest {
+    id: Int!
+    title: String!
+    description: String!
+    xpReward: Int!
+    category: String!
+    difficulty: String!
+    isCompleted: Boolean!
 }

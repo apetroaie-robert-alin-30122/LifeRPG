@@ -8,7 +8,8 @@ object QuestRepository {
             description = "Take a short walk and cover 250 meters.",
             target = 250f,
             unit = "m",
-            type = QuestType.WALKING
+            type = QuestType.WALKING,
+            xpReward = 50
         ),
         Quest(
             id = "jog_500",
@@ -16,7 +17,8 @@ object QuestRepository {
             description = "Pick up the pace and jog 500 meters.",
             target = 500f,
             unit = "m",
-            type = QuestType.JOGGING
+            type = QuestType.JOGGING,
+            xpReward = 75
         ),
         Quest(
             id = "situps_20",
@@ -24,7 +26,8 @@ object QuestRepository {
             description = "Complete 20 sit-ups.",
             target = 20f,
             unit = "reps",
-            type = QuestType.SITUPS
+            type = QuestType.SITUPS,
+            xpReward = 60
         ),
         Quest(
             id = "pushups_20",
@@ -32,7 +35,8 @@ object QuestRepository {
             description = "Complete 20 push-ups.",
             target = 20f,
             unit = "reps",
-            type = QuestType.PUSHUPS
+            type = QuestType.PUSHUPS,
+            xpReward = 60
         ),
         Quest(
             id = "read_book",
@@ -41,6 +45,7 @@ object QuestRepository {
             target = 1f,
             unit = "book",
             type = QuestType.HONOR,
+            xpReward = 100,
             requiresInput = true,
             inputFields = listOf("Book Title", "Author")
         ),
@@ -50,8 +55,8 @@ object QuestRepository {
             description = "Go outside and take a picture of a tree.",
             target = 1f,
             unit = "photo",
-            type = QuestType.PHOTO
+            type = QuestType.PHOTO,
+            xpReward = 50
         )
-
     )
 }
