@@ -16,8 +16,11 @@ def init_db():
 
     # Tabela pentru quest-uri
     cursor.execute('''CREATE TABLE IF NOT EXISTS quests
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, xp_reward INTEGER, category TEXT, difficulty TEXT, is_completed INTEGER DEFAULT 0)''')
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, description TEXT, xp_reward INTEGER, category TEXT, difficulty TEXT)''')
 
+    # Tabela pentru quest-urile completate
+    cursor.execute('''CREATE TABLE IF NOT EXISTS completed_quests
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, quest_id INTEGER, FOREIGN KEY(user_id) REFERENCES users(id), FOREIGN KEY(quest_id) REFERENCES quests(id))''')
     conn.commit()
     conn.close()
 
@@ -69,11 +72,21 @@ class Query:
     def get_quests(self) -> list[Quest]:
         conn = sqlite3.connect("lifequest.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT id, title, description, xp_reward, category, difficulty, is_completed FROM quests")
+        cursor.execute("SELECT id, title, description, xp_reward, category, difficulty FROM quests")
         rows = cursor.fetchall()
         conn.close()
         
-        return [Quest(id=row[0], title=row[1], description=row[2], xp_reward=row[3], category=row[4], difficulty=row[5], is_completed=bool(row[6])) for row in rows]
+        return [Quest(id=row[0], title=row[1], description=row[2], xp_reward=row[3], category=row[4], difficulty=row[5]) for row in rows]
+
+
+    @strawberry.field
+    def get_completed_quests_count(self, user_id: int) -> int:
+        conn = sqlite3.connect("lifequest.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM completed_quests WHERE user_id = ?", (user_id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
 
 @strawberry.type
 class CompleteQuestResponse:
