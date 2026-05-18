@@ -15,6 +15,17 @@ import com.example.test2.screens.RegisterScreen
 import com.example.test2.screens.ProfileScreen
 import com.example.test2.viewmodel.AuthViewModel
 import com.example.test2.viewmodel.QuestViewModel
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
     @SuppressLint("ComposableDestinationInComposeScope")
@@ -31,29 +42,40 @@ class MainActivity : ComponentActivity() {
         setContent {
             val navController = rememberNavController()
             val viewModel: AuthViewModel = viewModel()
-            val token by viewModel.token.collectAsState()
             val questViewModel: QuestViewModel = viewModel()
+            val isServerReachable by viewModel.isServerReachable.collectAsState()
 
-
-
-            NavHost(navController, startDestination = "login") {
-                composable("login") {
-                    LoginScreen(
-                        viewModel = viewModel,
-                        onNavigateToRegister = { navController.navigate("register") },
-                        onNavigateToProfile = { navController.navigate("profile") { popUpTo(0) } }
-                    )
+            Box(modifier = Modifier.fillMaxSize()) {
+                NavHost(navController, startDestination = "login") {
+                    composable("login") {
+                        LoginScreen(
+                            viewModel = viewModel,
+                            onNavigateToRegister = { navController.navigate("register") },
+                            onNavigateToProfile = { navController.navigate("profile") { popUpTo(0) } }
+                        )
+                    }
+                    composable("register") {
+                        RegisterScreen(
+                            viewModel = viewModel,
+                            onNavigateToLogin = { navController.popBackStack() },
+                            onNavigateToProfile = { navController.navigate("profile") { popUpTo(0) } }
+                        )
+                    }
+                    composable("profile") {
+                        ProfileScreen(authViewModel = viewModel, questViewModel = questViewModel)
+                    }
                 }
-                composable("register") {
-                    RegisterScreen(
-                        viewModel = viewModel,
-                        onNavigateToLogin = { navController.popBackStack() },
-                        onNavigateToProfile = { navController.navigate("profile") { popUpTo(0) } }
-                    )
-                }
 
-                composable("profile") {
-                    ProfileScreen(authViewModel = viewModel, questViewModel = questViewModel)
+                if (!isServerReachable) {
+                    Snackbar(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(16.dp),
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    ) {
+                        Text("Cannot reach server. Please check your connection.")
+                    }
                 }
             }
         }

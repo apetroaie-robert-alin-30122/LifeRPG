@@ -2,6 +2,7 @@ import strawberry
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
 import sqlite3
+from typing import Optional
 
 def init_db():
     conn = sqlite3.connect("lifequest.db")
@@ -33,7 +34,7 @@ class UserProfile:
 class AuthResponse:
     success: bool
     message: str
-    token: str = None
+    token: str | None = None
 
 @strawberry.type
 class Quest:

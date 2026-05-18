@@ -17,6 +17,13 @@ fun LoginScreen(viewModel: AuthViewModel, onNavigateToRegister: () -> Unit, onNa
     val passwordError by viewModel.passwordError.collectAsState()
     val navigateToProfile by viewModel.navigateToProfile.collectAsState()
 
+    LaunchedEffect(emailError) {
+        android.util.Log.d("LoginScreen", "emailError changed: $emailError")
+    }
+    LaunchedEffect(passwordError) {
+        android.util.Log.d("LoginScreen", "passwordError changed: $passwordError")
+    }
+
     LaunchedEffect(navigateToProfile) {
         if (navigateToProfile) {
             viewModel.resetNavigation()

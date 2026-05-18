@@ -2,6 +2,7 @@ package com.example.test2.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.apollographql.apollo.api.Operation
 import com.example.test2.CompleteQuestMutation
 import com.example.test2.LoginMutation
 import com.example.test2.RegisterMutation
@@ -41,6 +42,9 @@ class AuthViewModel : ViewModel() {
     private val _leveledUp = MutableStateFlow(false)
     val leveledUp: StateFlow<Boolean> = _leveledUp
 
+    private val _isServerReachable = MutableStateFlow(true)
+    val isServerReachable: StateFlow<Boolean> = _isServerReachable
+
     fun clearEmailError() { _emailError.value = null }
     fun clearPasswordError() { _passwordError.value = null }
     fun clearUsernameError() { _usernameError.value = null }
@@ -64,6 +68,11 @@ class AuthViewModel : ViewModel() {
             val response = ApolloClientInstance.client
                 .mutation(LoginMutation(email = email, password = password))
                 .execute()
+            if (response.exception != null) {
+                _isServerReachable.value = false
+                return@launch
+            }
+            _isServerReachable.value = true
             val result = response.data?.login ?: return@launch
             when {
                 result.success -> {
@@ -84,6 +93,11 @@ class AuthViewModel : ViewModel() {
             val response = ApolloClientInstance.client
                 .mutation(RegisterMutation(email = email, password = password, username = username))
                 .execute()
+            if (response.exception != null) {
+                _isServerReachable.value = false
+                return@launch
+            }
+            _isServerReachable.value = true
             val result = response.data?.register ?: return@launch
             when {
                 result.success -> {
@@ -106,6 +120,11 @@ class AuthViewModel : ViewModel() {
             val response = ApolloClientInstance.client
                 .query(MeQuery(token = currentToken))
                 .execute()
+            if (response.exception != null) {
+                _isServerReachable.value = false
+                return@launch
+            }
+            _isServerReachable.value = true
             val me = response.data?.me ?: return@launch
             _profile.value = UserProfile(
                 username = me.username,
@@ -123,6 +142,11 @@ class AuthViewModel : ViewModel() {
             val response = ApolloClientInstance.client
                 .mutation(CompleteQuestMutation(userId = userId, xpReward = xpReward))
                 .execute()
+            if (response.exception != null) {
+                _isServerReachable.value = false
+                return@launch
+            }
+            _isServerReachable.value = true
             val result = response.data?.completeQuest ?: return@launch
             _profile.value = UserProfile(
                 username = result.username,
@@ -133,4 +157,5 @@ class AuthViewModel : ViewModel() {
             if (result.leveledUp) _leveledUp.value = true
         }
     }
+
 }
