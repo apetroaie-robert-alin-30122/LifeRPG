@@ -1,0 +1,12 @@
+query GetRandomQuests($count: Int) {
+    getRandomQuests(count: $count) {
+        id
+        title
+        description
+        xpReward
+        category
+        difficulty
+        questType
+        target
+    }
+}

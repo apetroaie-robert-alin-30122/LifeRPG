@@ -1,5 +1,7 @@
 package com.example.test2.screens
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -13,7 +15,9 @@ import com.example.test2.viewmodel.QuestViewModel
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.RoundedCornerShape
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ProfileScreen(
     authViewModel: AuthViewModel,
@@ -21,13 +25,20 @@ fun ProfileScreen(
 ) {
     val profile by authViewModel.profile.collectAsState()
     val leveledUp by authViewModel.leveledUp.collectAsState()
+    val activeQuests by questViewModel.activeQuests.collectAsState()
+    val token by authViewModel.token.collectAsState()
+    val completedQuests by questViewModel.completedQuests.collectAsState()
+    var showingCompleted by remember { mutableStateOf(false)
+    }
 
-    if (leveledUp) {
-        LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(3000)
-            authViewModel.clearLevelUp()
+    LaunchedEffect(Unit) {
+        android.util.Log.d("ProfileScreen", "LaunchedEffect fired, token: $token")
+        if (questViewModel.activeQuests.value.isEmpty()) {
+            questViewModel.fetchRandomQuests()
         }
     }
+
+
 
     if (profile == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -50,7 +61,6 @@ fun ProfileScreen(
                     Text("Level ${profile!!.level}", style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.height(8.dp))
 
-                    // Calculate XP progress within current level
                     val xpForNextLevel = profile!!.xpForNextLevel
                     val xpIntoLevel = run {
                         var accumulated = 0
@@ -93,18 +103,68 @@ fun ProfileScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(24.dp))
-                    Text("Quests", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = {
+                            showingCompleted = false
+                        }) {
+                            Text(
+                                "Available",
+                                color = if (!showingCompleted) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                        TextButton(onClick = {
+                            showingCompleted = true
+                            token?.toIntOrNull()?.let { userId ->
+                                questViewModel.fetchCompletedQuests(userId)
+                            }
+                        }) {
+                            Text(
+                                "Completed",
+                                color = if (showingCompleted) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(8.dp))
                 }
             }
 
-            items(QuestRepository.all) { quest ->
-                QuestBanner(
-                    quest = quest,
-                    questViewModel = questViewModel,
-                    authViewModel = authViewModel
-                )
+            if (showingCompleted) {
+                items(completedQuests) { quest ->
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("✓ ${quest.title}", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "+${quest.xpReward} XP",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text(quest.description, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            } else {
+                items(activeQuests) { quest ->
+                    QuestBanner(quest = quest, questViewModel = questViewModel, authViewModel = authViewModel)
+                }
             }
         }
     }

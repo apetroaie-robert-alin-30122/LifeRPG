@@ -10,6 +10,7 @@ enum class QuestType {
 }
 data class Quest(
     val id: String,
+    val backendId: Int = 0,
     val title: String,
     val description: String,
     val target: Float,

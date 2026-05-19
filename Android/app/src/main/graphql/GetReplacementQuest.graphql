@@ -1,0 +1,12 @@
+query GetReplacementQuest($excludeTypes: [String!]!) {
+    getReplacementQuest(excludeTypes: $excludeTypes) {
+        id
+        title
+        description
+        xpReward
+        category
+        difficulty
+        questType
+        target
+    }
+}

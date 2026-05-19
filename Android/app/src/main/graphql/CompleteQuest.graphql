@@ -1,5 +1,5 @@
-mutation CompleteQuest($userId: Int!, $xpReward: Int!) {
-    completeQuest(userId: $userId, xpReward: $xpReward) {
+mutation CompleteQuest($userId: Int!, $questId: String!, $title: String!, $description: String!, $xpReward: Int!, $category: String!, $difficulty: String!, $questType: String!, $target: Int!) {
+    completeQuest(userId: $userId, questId: $questId, title: $title, description: $description, xpReward: $xpReward, category: $category, difficulty: $difficulty, questType: $questType, target: $target) {
         username
         level
         experience

@@ -1,0 +1,12 @@
+query GetCompletedQuests($userId: Int!) {
+    getCompletedQuests(userId: $userId) {
+        id
+        title
+        description
+        xpReward
+        category
+        difficulty
+        questType
+        target
+    }
+}

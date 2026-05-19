@@ -2,12 +2,15 @@ package com.example.test2.screens
 
 import android.content.*
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -21,6 +24,7 @@ import com.example.test2.services.SitUpService
 import com.example.test2.viewmodel.AuthViewModel
 import com.example.test2.viewmodel.QuestViewModel
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun QuestBanner(
     quest: Quest,
@@ -74,25 +78,37 @@ fun QuestBanner(
                         questViewModel.updateProgress(quest.id, intent.getFloatExtra("distance", 0f))
                     "WALK_COMPLETE" -> if (quest.type == QuestType.WALKING) {
                         questViewModel.completeQuest(quest.id)
-                        authViewModel.completeQuestAndAwardXP(quest.xpReward)
+                        authViewModel.completeQuestAndAwardXP(
+                            quest = quest,
+                            questViewModel = questViewModel
+                        )
                     }
                     "JOG_PROGRESS" -> if (quest.type == QuestType.JOGGING)
                         questViewModel.updateProgress(quest.id, intent.getFloatExtra("distance", 0f))
                     "JOG_COMPLETE" -> if (quest.type == QuestType.JOGGING) {
                         questViewModel.completeQuest(quest.id)
-                        authViewModel.completeQuestAndAwardXP(quest.xpReward)
+                        authViewModel.completeQuestAndAwardXP(
+                            quest = quest,
+                            questViewModel = questViewModel
+                        )
                     }
                     "SITUP_PROGRESS" -> if (quest.type == QuestType.SITUPS)
                         questViewModel.updateProgress(quest.id, intent.getIntExtra("reps", 0).toFloat())
                     "SITUP_COMPLETE" -> if (quest.type == QuestType.SITUPS) {
                         questViewModel.completeQuest(quest.id)
-                        authViewModel.completeQuestAndAwardXP(quest.xpReward)
+                        authViewModel.completeQuestAndAwardXP(
+                            quest = quest,
+                            questViewModel = questViewModel
+                        )
                     }
                     "PUSHUP_PROGRESS" -> if (quest.type == QuestType.PUSHUPS)
                         questViewModel.updateProgress(quest.id, intent.getIntExtra("reps", 0).toFloat())
                     "PUSHUP_COMPLETE" -> if (quest.type == QuestType.PUSHUPS) {
                         questViewModel.completeQuest(quest.id)
-                        authViewModel.completeQuestAndAwardXP(quest.xpReward)
+                        authViewModel.completeQuestAndAwardXP(
+                            quest = quest,
+                            questViewModel = questViewModel
+                        )
                     }
                 }
             }
@@ -128,22 +144,31 @@ fun QuestBanner(
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = if (isComplete) "✓ ${quest.title}" else quest.title,
                     style = MaterialTheme.typography.titleMedium
                 )
-                when {
-                    isComplete -> Text(
-                        "Done",
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    when {
+                        isComplete -> Text(
+                            "Done",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        isActive -> Text(
+                            "Active",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "+${quest.xpReward} XP",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    isActive -> Text(
-                        "Active",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                 }
             }
@@ -231,7 +256,10 @@ fun QuestBanner(
                         )
                     }
                     questViewModel.completeQuest(quest.id)
-                    authViewModel.completeQuestAndAwardXP(quest.xpReward)
+                    authViewModel.completeQuestAndAwardXP(
+                        quest = quest,
+                        questViewModel = questViewModel
+                    )
                     photoCaptured = false
                 }) { Text("Complete") }
             },

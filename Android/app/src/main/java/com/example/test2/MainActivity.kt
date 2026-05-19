@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -26,8 +27,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.test2.screens.CompletedQuestsScreen
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("ComposableDestinationInComposeScope")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,7 +65,15 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable("profile") {
-                        ProfileScreen(authViewModel = viewModel, questViewModel = questViewModel)
+                        ProfileScreen(
+                            authViewModel = viewModel,
+                            questViewModel = questViewModel
+                        )
+                    }
+                    composable("completed") {
+                        val token by viewModel.token.collectAsState()
+                        val userId = token?.toIntOrNull() ?: return@composable
+                        CompletedQuestsScreen(questViewModel = questViewModel, userId = userId)
                     }
                 }
 

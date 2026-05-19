@@ -7,6 +7,7 @@ import com.example.test2.CompleteQuestMutation
 import com.example.test2.LoginMutation
 import com.example.test2.RegisterMutation
 import com.example.test2.MeQuery
+import com.example.test2.quests.Quest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -135,12 +136,24 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun completeQuestAndAwardXP(xpReward: Int) {
+    fun completeQuestAndAwardXP(quest: Quest, questViewModel: QuestViewModel) {
         viewModelScope.launch {
             val currentToken = _token.value ?: return@launch
-            val userId = currentToken.toIntOrNull() ?: return@launch
+            val userIdInt = currentToken.toIntOrNull() ?: return@launch
             val response = ApolloClientInstance.client
-                .mutation(CompleteQuestMutation(userId = userId, xpReward = xpReward))
+                .mutation(
+                    CompleteQuestMutation(
+                        userId = userIdInt,
+                        questId = quest.id,
+                        title = quest.title,
+                        description = quest.description,
+                        xpReward = quest.xpReward,
+                        category = "fitness",
+                        difficulty = "Easy",
+                        questType = quest.type.name.lowercase(),
+                        target = quest.target.toInt()
+                    )
+                )
                 .execute()
             if (response.exception != null) {
                 _isServerReachable.value = false
@@ -155,6 +168,7 @@ class AuthViewModel : ViewModel() {
                 xpForNextLevel = result.xpForNextLevel
             )
             if (result.leveledUp) _leveledUp.value = true
+            questViewModel.fetchReplacementQuest(quest.id)
         }
     }
 
