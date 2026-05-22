@@ -1,0 +1,12 @@
+mutation ForgeQuest($userId: Int!, $title: String!, $questType: String!, $target: Int!, $targetLabel: String) {
+    forgeQuest(userId: $userId, title: $title, questType: $questType, target: $target, targetLabel: $targetLabel) {
+        id
+        title
+        description
+        xpReward
+        category
+        difficulty
+        questType
+        target
+    }
+}

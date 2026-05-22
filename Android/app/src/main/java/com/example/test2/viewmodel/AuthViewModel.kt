@@ -168,7 +168,11 @@ class AuthViewModel : ViewModel() {
                 xpForNextLevel = result.xpForNextLevel
             )
             if (result.leveledUp) _leveledUp.value = true
-            questViewModel.fetchReplacementQuest(quest.id)
+            if (quest.category == "forged") {
+                questViewModel.removeForgedQuest(quest.id)
+            } else {
+                questViewModel.fetchReplacementQuest(quest.id)
+            }
         }
     }
 

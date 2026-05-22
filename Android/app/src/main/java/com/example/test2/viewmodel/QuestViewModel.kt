@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import com.example.test2.GetRandomQuestsQuery
 import com.example.test2.GetReplacementQuestQuery
 import com.apollographql.apollo.api.Optional
+import com.example.test2.ForgeQuestMutation
 
 
 data class QuestProgress(
@@ -34,6 +35,10 @@ class QuestViewModel : ViewModel() {
 
     private val _completedQuests = MutableStateFlow<List<Quest>>(emptyList())
     val completedQuests: StateFlow<List<Quest>> = _completedQuests
+
+    private val _forgedQuests = MutableStateFlow<List<Quest>>(emptyList())
+    val forgedQuests: StateFlow<List<Quest>> = _forgedQuests
+
 
     fun fetchRandomQuests() {
         viewModelScope.launch {
@@ -93,6 +98,23 @@ class QuestViewModel : ViewModel() {
         _progress.value = _progress.value + (questId to updated)
     }
 
+    fun forgeQuest(userId: Int, title: String, questType: String, target: Int, targetLabel: String = "") {
+        viewModelScope.launch {
+            val response = ApolloClientInstance.client
+                .mutation(ForgeQuestMutation(
+                    userId = userId,
+                    title = title,
+                    questType = questType,
+                    target = target,
+                    targetLabel = Optional.present(targetLabel)
+                ))
+                .execute()
+            val result = response.data?.forgeQuest ?: return@launch
+            val quest = result.toForgedQuest()
+            _forgedQuests.value = listOf(quest) + _forgedQuests.value
+        }
+    }
+
     fun completeQuest(questId: String) {
         val existing = _progress.value[questId] ?: return
         _progress.value = _progress.value + (questId to existing.copy(isComplete = true, isActive = false))
@@ -116,11 +138,9 @@ class QuestViewModel : ViewModel() {
             unit = questType.toUnit(),
             type = questType,
             xpReward = this.xpReward,
+            category = this.category,
             requiresInput = questType == QuestType.HONOR,
-            inputFields = if (questType == QuestType.HONOR) listOf(
-                "Book Title",
-                "Author"
-            ) else emptyList()
+            inputFields = if (questType == QuestType.HONOR) listOf("Book Title", "Author") else emptyList()
         )
     }
 
@@ -134,11 +154,9 @@ class QuestViewModel : ViewModel() {
             unit = questType.toUnit(),
             type = questType,
             xpReward = this.xpReward,
+            category = this.category,
             requiresInput = questType == QuestType.HONOR,
-            inputFields = if (questType == QuestType.HONOR) listOf(
-                "Book Title",
-                "Author"
-            ) else emptyList()
+            inputFields = if (questType == QuestType.HONOR) listOf("Book Title", "Author") else emptyList()
         )
     }
 
@@ -151,7 +169,8 @@ class QuestViewModel : ViewModel() {
             target = this.target.toFloat(),
             unit = questType.toUnit(),
             type = questType,
-            xpReward = this.xpReward
+            xpReward = this.xpReward,
+            category = this.category
         )
     }
 
@@ -162,7 +181,8 @@ class QuestViewModel : ViewModel() {
         "pushups" -> QuestType.PUSHUPS
         "reading" -> QuestType.HONOR
         "photo" -> QuestType.PHOTO
-        else -> QuestType.HONOR
+        "other" -> QuestType.OTHER
+        else -> QuestType.OTHER
     }
 
     private fun QuestType.toUnit(): String = when (this) {
@@ -170,5 +190,24 @@ class QuestViewModel : ViewModel() {
         QuestType.SITUPS, QuestType.PUSHUPS -> "reps"
         QuestType.HONOR -> "book"
         QuestType.PHOTO -> "photo"
+        QuestType.OTHER -> "task"
+    }
+    private fun ForgeQuestMutation.ForgeQuest.toForgedQuest(): Quest {
+        val questType = this.questType.toQuestType()
+        return Quest(
+            id = this.id,
+            title = this.title,
+            description = this.description,
+            target = this.target.toFloat(),
+            unit = questType.toUnit(),
+            type = questType,
+            xpReward = this.xpReward,
+            category = this.category,
+            requiresInput = questType == QuestType.HONOR,
+            inputFields = if (questType == QuestType.HONOR) listOf("Book Title", "Author") else emptyList()
+        )
+    }
+    fun removeForgedQuest(questId: String) {
+        _forgedQuests.value = _forgedQuests.value.filter { it.id != questId }
     }
 }

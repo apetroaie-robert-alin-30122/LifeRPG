@@ -2,6 +2,7 @@ package com.example.test2.screens
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -28,7 +29,10 @@ fun ProfileScreen(
     val activeQuests by questViewModel.activeQuests.collectAsState()
     val token by authViewModel.token.collectAsState()
     val completedQuests by questViewModel.completedQuests.collectAsState()
+    var showForgeDialog by remember { mutableStateOf(false) }
+    val forgedQuests by questViewModel.forgedQuests.collectAsState()
     var showingCompleted by remember { mutableStateOf(false)
+
     }
 
     LaunchedEffect(Unit) {
@@ -109,27 +113,44 @@ fun ProfileScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(onClick = {
-                            showingCompleted = false
-                        }) {
-                            Text(
-                                "Available",
-                                color = if (!showingCompleted) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                        }
-                        TextButton(onClick = {
-                            showingCompleted = true
-                            token?.toIntOrNull()?.let { userId ->
-                                questViewModel.fetchCompletedQuests(userId)
+                        Row {
+                            TextButton(onClick = { showingCompleted = false }) {
+                                Text(
+                                    "Available",
+                                    color = if (!showingCompleted) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                )
                             }
-                        }) {
-                            Text(
-                                "Completed",
-                                color = if (showingCompleted) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
+                            TextButton(onClick = {
+                                showingCompleted = true
+                                token?.toIntOrNull()?.let { userId ->
+                                    questViewModel.fetchCompletedQuests(userId)
+                                }
+                            }) {
+                                Text(
+                                    "Completed",
+                                    color = if (showingCompleted) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                )
+                            }
                         }
+                        if (!showingCompleted) {
+                            TextButton(onClick = { showForgeDialog = true }) {
+                                Text("⚒ Forge")
+                            }
+                        }
+                    }
+
+                    // Show forge dialog:
+                    if (showForgeDialog) {
+                        ForgeQuestDialog(
+                            onDismiss = { showForgeDialog = false },
+                            onForge = { title, questType, target, targetLabel ->
+                                token?.toIntOrNull()?.let { userId ->
+                                    questViewModel.forgeQuest(userId, title, questType, target, targetLabel)
+                                }
+                            }
+                        )
                     }
                     Spacer(Modifier.height(8.dp))
                 }
@@ -137,11 +158,18 @@ fun ProfileScreen(
 
             if (showingCompleted) {
                 items(completedQuests) { quest ->
+                    val isForged = quest.category == "forged"
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        colors = if (isForged) CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        ) else CardDefaults.cardColors(),
+                        border = if (isForged) BorderStroke(
+                            2.dp, MaterialTheme.colorScheme.secondary
+                        ) else null
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(
@@ -162,8 +190,21 @@ fun ProfileScreen(
                     }
                 }
             } else {
+                items(forgedQuests) { quest ->
+                    QuestBanner(
+                        quest = quest,
+                        questViewModel = questViewModel,
+                        authViewModel = authViewModel,
+                        isForged = true
+                    )
+                }
                 items(activeQuests) { quest ->
-                    QuestBanner(quest = quest, questViewModel = questViewModel, authViewModel = authViewModel)
+                    QuestBanner(
+                        quest = quest,
+                        questViewModel = questViewModel,
+                        authViewModel = authViewModel,
+                        isForged = false
+                    )
                 }
             }
         }

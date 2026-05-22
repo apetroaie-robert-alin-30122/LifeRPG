@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -29,7 +30,8 @@ import com.example.test2.viewmodel.QuestViewModel
 fun QuestBanner(
     quest: Quest,
     questViewModel: QuestViewModel,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    isForged: Boolean = false
 ) {
     val context = LocalContext.current
     var showStartDialog by remember { mutableStateOf(false) }
@@ -128,12 +130,18 @@ fun QuestBanner(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = if (isForged) CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ) else CardDefaults.cardColors(),
+        border = if (isForged) BorderStroke(
+            2.dp, MaterialTheme.colorScheme.secondary
+        ) else null,
         onClick = {
             when {
-                isComplete -> showStartDialog = true
-                isActive && isPhysical -> { /* physical quests complete themselves */ }
+                isComplete && !isForged -> showStartDialog = true
+                isComplete && isForged -> { /* forged quests cannot be restarted */ }
+                isActive && isPhysical -> { }
                 isActive && quest.type == QuestType.PHOTO -> {
-                    // Retake photo
                     cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
                 }
                 isActive && !isPhysical -> showCompleteDialog = true

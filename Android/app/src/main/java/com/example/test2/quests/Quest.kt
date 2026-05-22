@@ -6,7 +6,8 @@ enum class QuestType {
     SITUPS,
     PUSHUPS,
     HONOR,
-    PHOTO
+    PHOTO,
+    OTHER
 }
 data class Quest(
     val id: String,
@@ -17,6 +18,7 @@ data class Quest(
     val unit: String,
     val type: QuestType,
     val xpReward: Int,
+    val category: String = "",
     val requiresInput: Boolean = false,
     val inputFields: List<String> = emptyList()
 )

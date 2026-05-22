@@ -9,50 +9,18 @@ import math
 def init_db():
     conn = sqlite3.connect("lifequest.db")
     cursor = conn.cursor()
+    # Tabela pentru conturi
     cursor.execute('''CREATE TABLE IF NOT EXISTS accounts 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password TEXT, username TEXT)''')
+    # Tabela pentru profilul de joc
     cursor.execute('''CREATE TABLE IF NOT EXISTS users 
                       (id INTEGER PRIMARY KEY, username TEXT, level INTEGER, experience INTEGER)''')
+    # Tabela pentru quest-uri completate
     cursor.execute('''CREATE TABLE IF NOT EXISTS completed_quests
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, quest_id TEXT, 
                        FOREIGN KEY(user_id) REFERENCES users(id))''')
     conn.commit()
     conn.close()
-
-init_db()
-
-@strawberry.type
-class UserProfile:
-    username: str
-    level: int
-    experience: int
-    xp_for_next_level: int
-
-@strawberry.type
-class AuthResponse:
-    success: bool
-    message: str
-    token: str | None = None
-
-@strawberry.type
-class Quest:
-    id: str
-    title: str
-    description: str
-    xp_reward: int
-    category: str
-    difficulty: str
-    quest_type: str
-    target: int
-
-@strawberry.type
-class CompleteQuestResponse:
-    username: str
-    level: int
-    experience: int
-    xp_gained: int
-    leveled_up: bool
-    xp_for_next_level: int
 
 def calculate_level(total_xp: int) -> int:
     level = 1
@@ -141,6 +109,79 @@ def generate_quest(quest_type: str) -> dict:
             "quest_type": "photo",
             "target": 1
         }
+
+def calculate_forged_xp(quest_type: str, target: int) -> int:
+    if quest_type == "walking":
+        return int(50 * (target / 250))
+    elif quest_type == "jogging":
+        return int(75 * (target / 500))
+    elif quest_type == "situps":
+        return int(30 * (target / 3))
+    elif quest_type == "pushups":
+        return int(30 * (target / 3))
+    elif quest_type == "reading":
+        return 100
+    elif quest_type == "photo":
+        return 40
+    elif quest_type == "other":
+        return 50
+    return 50
+
+def generate_forge_description(quest_type: str, target_str: str) -> str:
+    if quest_type == "walking":
+        return f"Walk {target_str} meters."
+    elif quest_type == "jogging":
+        return f"Jog {target_str} meters."
+    elif quest_type == "situps":
+        return f"Complete {target_str} sit-ups."
+    elif quest_type == "pushups":
+        return f"Complete {target_str} push-ups."
+    elif quest_type == "reading":
+        return "Read a book of your choice."
+    elif quest_type == "photo":
+        return f"Take a photo of {target_str}."
+    elif quest_type == "other":
+        return "Complete your custom quest."
+    return "Complete the custom quest."
+
+
+
+init_db()
+
+@strawberry.type
+class UserProfile:
+    username: str
+    level: int
+    experience: int
+    xp_for_next_level: int
+
+@strawberry.type
+class AuthResponse:
+    success: bool
+    message: str
+    token: str | None = None
+
+@strawberry.type
+class Quest:
+    id: str
+    title: str
+    description: str
+    xp_reward: int
+    category: str
+    difficulty: str
+    quest_type: str
+    target: int
+
+@strawberry.type
+class CompleteQuestResponse:
+    username: str
+    level: int
+    experience: int
+    xp_gained: int
+    leveled_up: bool
+    xp_for_next_level: int
+
+
 
 # --- (QUERIES) ---
 @strawberry.type
@@ -287,6 +328,25 @@ class Mutation:
             leveled_up=leveled_up,
             xp_for_next_level=xp_for_level(new_level)
         )
+    @strawberry.mutation
+    def forge_quest(self, user_id: int, title: str, quest_type: str, target: int, target_label: str = "") -> Quest:
+        xp_reward = calculate_forged_xp(quest_type, target)
+        quest_id = f"forged_{user_id}_{quest_type}_{random.randint(1000, 9999)}"
+        description = generate_forge_description(quest_type, target_label if target_label else str(target))
+        difficulty = "Easy" if xp_reward <= 50 else "Medium" if xp_reward <= 100 else "Hard"
+        return Quest(
+            id=quest_id,
+            title=title,
+            description=description,
+            xp_reward=xp_reward,
+            category="forged",
+            difficulty=difficulty,
+            quest_type=quest_type,
+            target=target
+        )
+
+
+    
 
 # --- starting the server ---
 schema = strawberry.Schema(query=Query, mutation=Mutation)

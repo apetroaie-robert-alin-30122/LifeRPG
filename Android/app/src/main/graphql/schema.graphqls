@@ -10,6 +10,7 @@ type Mutation {
     register(email: String!, password: String!, username: String!): AuthResponse
     login(email: String!, password: String!): AuthResponse
     completeQuest(userId: Int!, questId: String!, title: String!, description: String!, xpReward: Int!, category: String!, difficulty: String!, questType: String!, target: Int!): CompleteQuestResponse
+    forgeQuest(userId: Int!, title: String!, questType: String!, target: Int!, targetLabel: String): Quest
 }
 
 type UserProfile {
