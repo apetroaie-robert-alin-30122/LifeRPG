@@ -15,11 +15,66 @@ def init_db():
     # Tabela pentru profilul de joc
     cursor.execute('''CREATE TABLE IF NOT EXISTS users 
                       (id INTEGER PRIMARY KEY, username TEXT, level INTEGER, experience INTEGER)''')
-    # Tabela pentru quest-uri completate
-    cursor.execute('''CREATE TABLE IF NOT EXISTS completed_quests
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, quest_id TEXT, 
-                       FOREIGN KEY(user_id) REFERENCES users(id))''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS storylines
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                   title TEXT,
+                   description TEXT)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS quests
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                   title TEXT,
+                   description TEXT,
+                   xp_reward INTEGER,
+                   category TEXT,
+                   difficulty TEXT,
+                   storyline_id INTEGER NULL,
+                   storyline_step INTEGER NULL,
+                   FOREIGN KEY(storyline_id) REFERENCES storylines(id))''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS user_storylines
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                   user_id INTEGER,
+                   storyline_id INTEGER,
+                   current_step INTEGER DEFAULT 1,
+                   FOREIGN KEY(user_id) REFERENCES users(id),
+                   FOREIGN KEY(storyline_id) REFERENCES storylines(id),
+                   UNIQUE(user_id, storyline_id)) ''')
     conn.commit()
+
+    cursor.execute("SELECT COUNT(*) FROM storylines")
+    if cursor.fetchone()[0] == 0:
+        print("Inserting default storylines...")
+
+        cursor.execute("INSERT INTO storylines (title, description) VALUES (?, ?)",
+                       ("Get in Shape!", "Embark on a fitness journey to improve your health and well-being. Complete quests that challenge you to walk, jog, do sit-ups, and push-ups."))
+        story1_id = cursor.lastrowid
+
+        quests_story1 = [
+            ("Warm up", "Walk 500 meters to get your body moving.", 100, "walking", "Easy", 1),
+            ("Wake your abs up!", "Complete 20 sit-ups.", 200, "situps", "Hard", 2),
+            ("Push Through!", "Complete 15 push-ups.", 150, "pushups", "Medium", 3),
+            ("Hard Mode!", "Complete 50 sit-ups.", 500, "situps", "Hard", 4),
+            ("Full Body Challenge!", "Do a 30 minutes cardio session!", 600, "other", "Hard", 5)
+        ]
+        for q in quests_story1:
+            cursor.execute("""INSERT INTO quests (title, description, xp_reward, category, difficulty, storyline_id, storyline_step)
+                           VALUES (?, ?, ?, ?, ?, ?, ?) """, (q[0], q[1], q[2], q[3], q[4], story1_id, q[5]))
+
+        cursor.execute("INSERT INTO storylines (title, description) VALUES (?, ?)",
+                       ("The Writer's Journey", "Draw inspiration from the world around you and become a master storyteller. Complete quests that encourage you to read, write, and explore your creativity."))
+        
+        story2_id = cursor.lastrowid
+        quests_story2 = [
+            ("Inspiration Farming", "Read a book of your choice (min. 155 pages).", 100, "reading", "Easy", 1),
+            ("Caracter Creation", "Write a detailed character profile for a story idea you have.", 50, "other", "Medium", 2),
+            ("Learning from the bests", "Read a classic novel (e.g., 'To Kill a Mockingbird', '1984', 'Pride and Prejudice').", 100, "reading", "Medium", 3),
+            ("Plotting the Journey", "Outline the plot of a story you want to write, including main events and character arcs.", 150, "other", "Medium", 4),
+            ("The MasterPiece", "Write a short story (at least 1000 words) and share it with friends or online.", 300, "other", "Hard", 5)
+        ]
+        for q in quests_story2:
+            cursor.execute("""INSERT INTO quests (title, description, xp_reward, category, difficulty, storyline_id, storyline_step)
+                           VALUES (?, ?, ?, ?, ?, ?, ?) """, (q[0], q[1], q[2], q[3], q[4], story2_id, q[5]))
+        conn.commit()
+        print("Default storylines and quests inserted.")
+
     conn.close()
 
 def calculate_level(total_xp: int) -> int:
@@ -169,8 +224,14 @@ class Quest:
     xp_reward: int
     category: str
     difficulty: str
-    quest_type: str
-    target: int
+    storyline_id: int | None = None
+    storyline_step: int | None = None
+
+@strawberry.type
+class Storyline:
+    id: int
+    title: str
+    description: str
 
 @strawberry.type
 class CompleteQuestResponse:
@@ -210,6 +271,15 @@ class Query:
             q["id"] = f"{qt}_{i}_{random.randint(1000, 9999)}"
             quests.append(Quest(**q))
         return quests
+    
+    @strawberry.field
+    def get_storylines(self) -> list[Storyline]:
+        conn = sqlite3.connect("lifequest.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, title, description FROM storylines")
+        rows = cursor.fetchall()
+        conn.close()
+        return [Storyline(id=row[0], title=row[1], description=row[2]) for row in rows]
 
     @strawberry.field
     def get_replacement_quest(self, exclude_types: list[str]) -> Optional[Quest]:
