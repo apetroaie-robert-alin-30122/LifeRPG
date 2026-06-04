@@ -1,0 +1,24 @@
+query GetStorylines {
+    getStorylines {
+        id
+        title
+        description
+    }
+}
+
+mutation StartStoryline($userId: Int!, $storylineId: Int!) {
+    startStoryline(userId: $userId, storylineId: $storylineId)
+}
+
+query getActiveStorylineQuest($userId: Int!) {
+    getActiveStorylineQuest(userId: $userId) {
+        id
+        title
+        description
+        xpReward
+        category
+        difficulty
+        questType
+        target
+    }
+}

@@ -1,3 +1,5 @@
+import re
+
 import strawberry
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
@@ -224,6 +226,8 @@ class Quest:
     xp_reward: int
     category: str
     difficulty: str
+    quest_type: str
+    target: int
     storyline_id: int | None = None
     storyline_step: int | None = None
 
@@ -280,6 +284,69 @@ class Query:
         rows = cursor.fetchall()
         conn.close()
         return [Storyline(id=row[0], title=row[1], description=row[2]) for row in rows]
+    
+    @strawberry.field
+    def get_active_storyline_quest(self, user_id: int) -> Quest | None:
+        import sqlite3
+        conn = sqlite3.connect("lifequest.db")
+        cursor = conn.cursor()
+        cursor.execute(""" 
+            SELECT storyline_id, current_step
+                       FROM user_storylines
+                       WHERE user_id = ?
+                       LIMIT 3""", (user_id,))
+        rows = cursor.fetchall()
+        if not rows:
+            conn.close()
+            return None
+        
+        titles = []
+        descriptions = []
+        total_xp = 0
+        main_q_id = ""
+        main_category = "other"
+        main_difficulty = "Easy"
+        
+
+        for storyline_id, current_step in rows:
+            cursor.execute("""
+                       SELECT id, title, description, xp_reward, category, difficulty
+                       FROM quests
+                       WHERE storyline_id = ? AND storyline_step = ?""", (storyline_id, current_step))
+            step = cursor.fetchone()
+
+            if step:
+                q_id, title, description, xp_reward, actual_category, difficulty = step
+                titles.append(title)
+                descriptions.append(f"*{description}")
+                total_xp += xp_reward
+                main_q_id += f"{q_id}_"
+                main_category = actual_category
+                main_difficulty = difficulty
+        conn.close()
+
+        if not titles:
+            return None
+        
+        combined_title = " / ".join(titles)
+        combined_description = "\n".join(descriptions)
+
+        numbers = re.findall(r'\d+', combined_description)
+        target_value = int(numbers[0]) if numbers else 1
+        
+
+        return Quest(
+            id=f"storyline_{main_q_id}", # string unic
+            title=f"Active adventures: {combined_title}",
+            description=combined_description,
+            xp_reward=total_xp,
+            category="storyline",  # lasam storyline ca sa stie fronted ca vrem mov 
+            difficulty=main_difficulty,
+            quest_type=main_category,
+            target=target_value,
+            storyline_id=rows[0][0],  # luam storyline_id din primul quest activ (daca sunt mai multe, e ok sa fie acelasi)
+            storyline_step=rows[0][1]  # luam current_step din primul quest activ (daca sunt mai multe, e ok sa fie acelasi)
+        )
 
     @strawberry.field
     def get_replacement_quest(self, exclude_types: list[str]) -> Optional[Quest]:
@@ -414,6 +481,20 @@ class Mutation:
             quest_type=quest_type,
             target=target
         )
+    
+    @strawberry.mutation
+    def start_storyline(self, user_id: int, storyline_id:int) -> bool:
+        conn = sqlite3.connect("lifequest.db")
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""INSERT OR IGNORE INTO user_storylines (user_id, storyline_id, current_step) VALUES (?, ?, 1)""", (user_id, storyline_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error starting storyline: {e}")
+            return False
+        finally:
+            conn.close()
 
 
     

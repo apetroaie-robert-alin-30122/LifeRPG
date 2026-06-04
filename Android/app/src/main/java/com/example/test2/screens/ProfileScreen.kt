@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -31,18 +32,27 @@ fun ProfileScreen(
     val completedQuests by questViewModel.completedQuests.collectAsState()
     var showForgeDialog by remember { mutableStateOf(false) }
     val forgedQuests by questViewModel.forgedQuests.collectAsState()
-    var showingCompleted by remember { mutableStateOf(false)
 
-    }
+    var showStorylineDialog by remember { mutableStateOf(false) }
+    val storylines by questViewModel.storylines.collectAsState()
 
+    // --- MÓDOSÍTÁS A): Figyeljük az aktív storyline küldetést ---
+    val activeStorylineQuest by questViewModel.activeStorylineQuest.collectAsState()
+
+    var showingCompleted by remember { mutableStateOf(false) }
+
+    // --- MÓDOSÍTÁS B): Lekérjük belépéskor az aktív storyline-t is ---
     LaunchedEffect(Unit) {
         android.util.Log.d("ProfileScreen", "LaunchedEffect fired, token: $token")
+        val userId = token?.toIntOrNull()
+        if (userId != null) {
+            questViewModel.fetchActiveStorylineQuest(userId)
+        }
         if (questViewModel.activeQuests.value.isEmpty()) {
             questViewModel.fetchRandomQuests()
         }
+        questViewModel.fetchStorylines()
     }
-
-
 
     if (profile == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -135,6 +145,11 @@ fun ProfileScreen(
                             }
                         }
                         if (!showingCompleted) {
+                            Row {
+                                TextButton(onClick = { showStorylineDialog = true }) {
+                                    Text("Storylines")
+                                }
+                            }
                             TextButton(onClick = { showForgeDialog = true }) {
                                 Text("⚒ Forge")
                             }
@@ -152,6 +167,54 @@ fun ProfileScreen(
                             }
                         )
                     }
+
+                    if (showStorylineDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showStorylineDialog = false },
+                            title = {
+                                Text("Select your next adventure!")
+                            },
+                            text = {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    if (storylines.isEmpty()) {
+                                        Text("No storyline available!")
+                                    }
+                                    storylines.forEach { storyline ->
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp),
+                                            onClick = {
+                                                val userId = token?.toIntOrNull()
+                                                if (userId != null) {
+                                                    // --- MÓDOSÍTÁS C): startStoryline után azonnal frissítjük a nézetet ---
+                                                    questViewModel.startStoryline(
+                                                        userId,
+                                                        storyline.id
+                                                    ) {
+                                                        showStorylineDialog = false
+                                                        questViewModel.fetchActiveStorylineQuest(userId)
+                                                    }
+                                                }
+                                            }
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Text(storyline.title, style = MaterialTheme.typography.titleMedium)
+                                                Spacer(Modifier.height(4.dp))
+                                                Text(storyline.description, style = MaterialTheme.typography.bodySmall)
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(onClick = { showStorylineDialog = false }) {
+                                    Text("Close")
+                                }
+                            }
+                        )
+                    }
+
                     Spacer(Modifier.height(8.dp))
                 }
             }
@@ -190,6 +253,39 @@ fun ProfileScreen(
                     }
                 }
             } else {
+
+                activeStorylineQuest?.let { storylineQuest ->
+                    item {
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                            border = BorderStroke(2.5.dp, Color(0xFF9C27B0))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("📖 ${storylineQuest.title}", style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        "+${storylineQuest.xpReward} XP",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Text(storylineQuest.description, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+
                 items(forgedQuests) { quest ->
                     QuestBanner(
                         quest = quest,

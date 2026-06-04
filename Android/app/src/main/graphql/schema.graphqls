@@ -4,6 +4,8 @@ type Query {
     getReplacementQuest(excludeTypes: [String!]!): Quest
     getCompletedQuests(userId: Int!): [Quest!]!
     getCompletedQuestsCount(userId: Int!): Int!
+    getStorylines: [Storyline!]!
+    getActiveStorylineQuest(userId: Int!): Quest
 }
 
 type Mutation {
@@ -11,6 +13,7 @@ type Mutation {
     login(email: String!, password: String!): AuthResponse
     completeQuest(userId: Int!, questId: String!, title: String!, description: String!, xpReward: Int!, category: String!, difficulty: String!, questType: String!, target: Int!): CompleteQuestResponse
     forgeQuest(userId: Int!, title: String!, questType: String!, target: Int!, targetLabel: String): Quest
+    startStoryline(userId: Int!, storylineId: Int!): Boolean!
 }
 
 type UserProfile {
@@ -18,6 +21,11 @@ type UserProfile {
     level: Int!
     experience: Int!
     xpForNextLevel: Int!
+}
+type Storyline {
+    id: Int!
+    title: String!
+    description: String!
 }
 
 type AuthResponse {

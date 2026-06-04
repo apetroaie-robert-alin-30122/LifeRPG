@@ -13,6 +13,9 @@ import com.example.test2.GetRandomQuestsQuery
 import com.example.test2.GetReplacementQuestQuery
 import com.apollographql.apollo.api.Optional
 import com.example.test2.ForgeQuestMutation
+import com.example.test2.GetActiveStorylineQuestQuery
+import com.example.test2.GetStorylinesQuery
+import com.example.test2.StartStorylineMutation
 
 
 data class QuestProgress(
@@ -23,6 +26,11 @@ data class QuestProgress(
 )
 
 class QuestViewModel : ViewModel() {
+    private val _activeStorylineQuest = MutableStateFlow<Quest?>(null)
+    val activeStorylineQuest: StateFlow<Quest?> = _activeStorylineQuest
+
+    private val _storylines = MutableStateFlow<List<GetStorylinesQuery.GetStoryline>>(emptyList())
+    val storylines: StateFlow<List<GetStorylinesQuery.GetStoryline>> = _storylines
 
     private val _progress = MutableStateFlow<Map<String, QuestProgress>>(emptyMap())
     val progress: StateFlow<Map<String, QuestProgress>> = _progress
@@ -112,6 +120,68 @@ class QuestViewModel : ViewModel() {
             val result = response.data?.forgeQuest ?: return@launch
             val quest = result.toForgedQuest()
             _forgedQuests.value = listOf(quest) + _forgedQuests.value
+        }
+    }
+
+    fun fetchActiveStorylineQuest(userId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = ApolloClientInstance.client
+                    .query(GetActiveStorylineQuestQuery(userId = userId))
+                    .execute()
+
+                val q = response.data?.getActiveStorylineQuest
+                if (q != null) {
+                    // A meglévő toQuest() logikád alapján képezzük le, nem kellenek az extra mezők
+                    val qType = q.questType.toQuestType()
+                    _activeStorylineQuest.value = Quest(
+                        id = q.id,
+                        title = q.title,
+                        description = q.description,
+                        target = q.target.toFloat(),
+                        unit = qType.toUnit(),
+                        type = qType,
+                        xpReward = q.xpReward,
+                        category = q.category, // Ez lesz "storyline", amit a szerver küld!
+                        requiresInput = qType == QuestType.HONOR,
+                        inputFields = if (qType == QuestType.HONOR) listOf("Book Title", "Author") else emptyList()
+                    )
+                } else {
+                    _activeStorylineQuest.value = null
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun startStoryline(userId: Int, storylineId: Int, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = ApolloClientInstance.client
+                    .mutation(StartStorylineMutation(userId = userId, storylineId = storylineId))
+                    .execute()
+                if (response.data?.startStoryline == true) {
+                    onComplete()
+                }
+            }catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun fetchStorylines() {
+        viewModelScope.launch {
+            try {
+                val response = ApolloClientInstance.client
+                    .query(GetStorylinesQuery())
+                    .execute()
+                if(!response.hasErrors()) {
+                    _storylines.value = response.data?.getStorylines ?: emptyList()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
