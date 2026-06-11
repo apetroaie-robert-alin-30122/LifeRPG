@@ -4,5 +4,6 @@ query Me($token: String!) {
         level
         experience
         xpForNextLevel
+        avatar
     }
 }

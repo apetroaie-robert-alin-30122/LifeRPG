@@ -1,0 +1,3 @@
+mutation UpdateAvatar($userId: Int!, $avatar: String!) {
+    updateAvatar(userId: $userId, avatar: $avatar)
+}

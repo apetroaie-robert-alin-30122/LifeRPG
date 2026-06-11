@@ -18,6 +18,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import com.example.test2.R
+
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -35,13 +42,14 @@ fun ProfileScreen(
 
     var showStorylineDialog by remember { mutableStateOf(false) }
     val storylines by questViewModel.storylines.collectAsState()
+    var showStorylineDetails by remember { mutableStateOf(false) }
 
-    // --- MÓDOSÍTÁS A): Figyeljük az aktív storyline küldetést ---
     val activeStorylineQuest by questViewModel.activeStorylineQuest.collectAsState()
 
     var showingCompleted by remember { mutableStateOf(false) }
 
-    // --- MÓDOSÍTÁS B): Lekérjük belépéskor az aktív storyline-t is ---
+    var showAvatarDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         android.util.Log.d("ProfileScreen", "LaunchedEffect fired, token: $token")
         val userId = token?.toIntOrNull()
@@ -70,7 +78,26 @@ fun ProfileScreen(
                         .padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(profile!!.username, style = MaterialTheme.typography.headlineLarge)
+                    Image(
+                        painter = painterResource(
+                            id = avatarToDrawable(profile!!.avatar)
+                        ),
+                        contentDescription = "Profile Avatar",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .size(136.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable {
+                                showAvatarDialog = true
+                            }
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Text(
+                        profile!!.username,
+                        style = MaterialTheme.typography.headlineLarge
+                    )
                     Spacer(Modifier.height(8.dp))
                     Text("Level ${profile!!.level}", style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.height(8.dp))
@@ -187,7 +214,6 @@ fun ProfileScreen(
                                             onClick = {
                                                 val userId = token?.toIntOrNull()
                                                 if (userId != null) {
-                                                    // --- MÓDOSÍTÁS C): startStoryline után azonnal frissítjük a nézetet ---
                                                     questViewModel.startStoryline(
                                                         userId,
                                                         storyline.id
@@ -304,5 +330,92 @@ fun ProfileScreen(
                 }
             }
         }
+        if (showAvatarDialog) {
+            AlertDialog(
+                onDismissRequest = { showAvatarDialog = false },
+                title = {
+                    Text("Choose Avatar")
+                },
+                text = {
+                    Column {
+
+                        AVAILABLE_AVATARS.chunked(3).forEach { rowAvatars ->
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+
+                                rowAvatars.forEach { avatar ->
+
+                                    Card(
+                                        modifier = Modifier
+                                            .width(90.dp)
+                                            .padding(4.dp),
+                                        onClick = {
+                                            authViewModel.updateAvatar(avatar.id)
+                                            showAvatarDialog = false
+                                        }
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(8.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+
+                                            Image(
+                                                painter = painterResource(avatar.drawable),
+                                                contentDescription = avatar.id,
+                                                modifier = Modifier.size(64.dp)
+                                            )
+
+                                            Spacer(Modifier.height(4.dp))
+
+                                            Text(
+                                                avatar.id.replaceFirstChar {
+                                                    it.uppercase()
+                                                },
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+
+                                            if (avatar.id == profile!!.avatar) {
+                                                Text(
+                                                    "✓",
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+                },
+                confirmButton = {}
+            )
+        }
+
     }
+}
+data class Avatar(
+    val id: String,
+    val drawable: Int
+)
+
+val AVAILABLE_AVATARS = listOf(
+    Avatar("Weird guy", R.drawable.default_avatar),
+    Avatar("Brad", R.drawable.brad),
+    Avatar("Brian", R.drawable.brian),
+    Avatar("Mothman", R.drawable.mothman),
+    Avatar("Lilienne", R.drawable.netpicker)
+
+)
+fun avatarToDrawable(avatar: String): Int {
+    return AVAILABLE_AVATARS
+        .find { it.id == avatar }
+        ?.drawable
+        ?: R.drawable.default_avatar
 }

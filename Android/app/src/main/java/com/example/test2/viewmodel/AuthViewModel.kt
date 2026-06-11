@@ -7,6 +7,7 @@ import com.example.test2.CompleteQuestMutation
 import com.example.test2.LoginMutation
 import com.example.test2.RegisterMutation
 import com.example.test2.MeQuery
+import com.example.test2.UpdateAvatarMutation
 import com.example.test2.quests.Quest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +18,8 @@ data class UserProfile(
     val username: String,
     val level: Int,
     val experience: Int,
-    val xpForNextLevel: Int
+    val xpForNextLevel: Int,
+    val avatar: String
 )
 
 class AuthViewModel : ViewModel() {
@@ -106,11 +108,15 @@ class AuthViewModel : ViewModel() {
                     fetchProfile()
                     _navigateToProfile.value = true
                 }
-                result.message.contains("email") ->
-                    _emailError.value = "An account with this email already exists."
-                result.message.contains("username") ->
-                    _usernameError.value = "This username is already taken."
-                else -> _emailError.value = result.message
+
+                result.message.contains("email", ignoreCase = true) ->
+                    _emailError.value = result.message
+
+                result.message.contains("username", ignoreCase = true) ->
+                    _usernameError.value = result.message
+
+                result.message.contains("password", ignoreCase = true) ->
+                    _passwordError.value = result.message
             }
         }
     }
@@ -131,7 +137,8 @@ class AuthViewModel : ViewModel() {
                 username = me.username,
                 level = me.level,
                 experience = me.experience,
-                xpForNextLevel = me.xpForNextLevel
+                xpForNextLevel = me.xpForNextLevel,
+                avatar = me.avatar
             )
         }
     }
@@ -165,7 +172,8 @@ class AuthViewModel : ViewModel() {
                 username = result.username,
                 level = result.level,
                 experience = result.experience,
-                xpForNextLevel = result.xpForNextLevel
+                xpForNextLevel = result.xpForNextLevel,
+                avatar = _profile.value?.avatar ?: "default_avatar"
             )
             if (result.leveledUp) _leveledUp.value = true
             if (quest.category == "forged") {
@@ -173,6 +181,24 @@ class AuthViewModel : ViewModel() {
             } else {
                 questViewModel.fetchReplacementQuest(quest.id)
             }
+        }
+    }
+    fun updateAvatar(avatar: String) {
+        viewModelScope.launch {
+
+            val userId = _token.value?.toIntOrNull()
+                ?: return@launch
+
+            ApolloClientInstance.client
+                .mutation(
+                    UpdateAvatarMutation(
+                        userId = userId,
+                        avatar = avatar
+                    )
+                )
+                .execute()
+
+            fetchProfile()
         }
     }
 

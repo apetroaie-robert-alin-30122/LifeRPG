@@ -15,8 +15,14 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS accounts 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password TEXT, username TEXT)''')
     # Tabela pentru profilul de joc
-    cursor.execute('''CREATE TABLE IF NOT EXISTS users 
-                      (id INTEGER PRIMARY KEY, username TEXT, level INTEGER, experience INTEGER)''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users
+                  (id INTEGER PRIMARY KEY, username TEXT, level INTEGER, experience INTEGER, avatar TEXT DEFAULT 'default_avatar')''')
+    try:
+        cursor.execute(
+            "ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT 'default_avatar'"
+        )
+    except:
+        pass
     cursor.execute('''CREATE TABLE IF NOT EXISTS storylines
                       (id INTEGER PRIMARY KEY AUTOINCREMENT,
                    title TEXT,
@@ -201,7 +207,14 @@ def generate_forge_description(quest_type: str, target_str: str) -> str:
         return "Complete your custom quest."
     return "Complete the custom quest."
 
+def is_valid_password(password: str) -> tuple[bool, str]:
+    if len(password) < 3:
+        return False, "Password must contain at least 3 characters."
 
+    if any(c in password for c in ['\0', '\n', '\r', '\t']):
+        return False, "Password contains invalid characters."
+
+    return True, ""
 
 init_db()
 
@@ -211,6 +224,7 @@ class UserProfile:
     level: int
     experience: int
     xp_for_next_level: int
+    avatar: str
 
 @strawberry.type
 class AuthResponse:
@@ -255,14 +269,14 @@ class Query:
     def me(self, token: str) -> UserProfile:
         conn = sqlite3.connect("lifequest.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT username, level, experience FROM users WHERE id = ?", (token,))
+        cursor.execute("SELECT username, level, experience, avatar FROM users WHERE id = ?", (token,))
         row = cursor.fetchone()
         conn.close()
         if row:
             level = row[1]
             total_xp = row[2]
             threshold = xp_for_level(level)
-            return UserProfile(username=row[0], level=level, experience=total_xp, xp_for_next_level=threshold)
+            return UserProfile(username=row[0], level=level, experience=total_xp, xp_for_next_level=threshold, avatar=row[3])
         return None
 
     @strawberry.field
@@ -387,30 +401,76 @@ class Mutation:
     def register(self, email: str, password: str, username: str) -> AuthResponse:
         conn = sqlite3.connect("lifequest.db")
         cursor = conn.cursor()
+
+        # Email validation
+        if not email or not email.strip():
+            conn.close()
+            return AuthResponse(
+                success=False,
+                message="Email cannot be blank."
+            )
+
+        # Username validation
+        if not username or not username.strip():
+            conn.close()
+            return AuthResponse(
+                success=False,
+                message="Username cannot be blank."
+            )
+
+        # Password validation
+        if len(password) < 3:
+            conn.close()
+            return AuthResponse(
+                success=False,
+                message="Password must contain at least 3 characters."
+            )
+
+        if any(c in password for c in ['\0', '\n', '\r', '\t']):
+            conn.close()
+            return AuthResponse(
+                success=False,
+                message="Password contains invalid characters."
+            )
+
         cursor.execute("SELECT id FROM accounts WHERE email = ?", (email,))
         if cursor.fetchone():
             conn.close()
             return AuthResponse(success=False, message="email already exists.")
+
         cursor.execute("SELECT id FROM accounts WHERE username = ?", (username,))
         if cursor.fetchone():
             conn.close()
             return AuthResponse(success=False, message="username already exists.")
+
         try:
             cursor.execute(
                 "INSERT INTO accounts (email, password, username) VALUES (?, ?, ?)",
-                (email, password, username)
+                (email.strip(), password, username.strip())
             )
+
             account_id = cursor.lastrowid
+
             cursor.execute(
                 "INSERT INTO users (id, username, level, experience) VALUES (?, ?, ?, ?)",
-                (account_id, username, 1, 0)
+                (account_id, username.strip(), 1, 0)
             )
+
             conn.commit()
             conn.close()
-            return AuthResponse(success=True, message="Cont creat cu succes!", token=str(account_id))
+
+            return AuthResponse(
+                success=True,
+                message="Cont creat cu succes!",
+                token=str(account_id)
+            )
+
         except Exception as e:
             conn.close()
-            return AuthResponse(success=False, message=f"Eroare: {str(e)}")
+            return AuthResponse(
+                success=False,
+                message=f"Eroare: {str(e)}"
+            )
 
     @strawberry.mutation
     def login(self, email: str, password: str) -> AuthResponse:
@@ -495,7 +555,27 @@ class Mutation:
             return False
         finally:
             conn.close()
+            
+    @strawberry.mutation
+    def update_avatar(self, user_id: int, avatar: str) -> bool:
+        conn = sqlite3.connect("lifequest.db")
+        cursor = conn.cursor()
 
+        try:
+            cursor.execute(
+                "UPDATE users SET avatar = ? WHERE id = ?",
+                (avatar, user_id)
+            )
+
+            conn.commit()
+            return True
+
+        except Exception as e:
+            print(f"Avatar update error: {e}")
+            return False
+
+        finally:
+            conn.close()
 
     
 
