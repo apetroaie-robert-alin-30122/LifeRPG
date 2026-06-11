@@ -1,4 +1,5 @@
 import re
+from unicodedata import category
 
 import strawberry
 from fastapi import FastAPI
@@ -302,65 +303,48 @@ class Query:
     @strawberry.field
     def get_active_storyline_quest(self, user_id: int) -> Quest | None:
         import sqlite3
+        import re
         conn = sqlite3.connect("lifequest.db")
         cursor = conn.cursor()
         cursor.execute(""" 
             SELECT storyline_id, current_step
                        FROM user_storylines
                        WHERE user_id = ?
-                       LIMIT 3""", (user_id,))
-        rows = cursor.fetchall()
-        if not rows:
+                       LIMIT 1""", (user_id,))
+        row = cursor.fetchone()
+        if not row:
             conn.close()
             return None
         
-        titles = []
-        descriptions = []
-        total_xp = 0
-        main_q_id = ""
-        main_category = "other"
-        main_difficulty = "Easy"
+        storyline_id, current_step = row
+        cursor.execute("""
+            SELECT id, title, description, xp_reward, category, difficulty
+            FROM quests
+            WHERE storyline_id = ? AND storyline_step = ?""", (storyline_id, current_step))
+        step = cursor.fetchone()
+        if not step:
+            conn.close()
+            return None  
         
-
-        for storyline_id, current_step in rows:
-            cursor.execute("""
-                       SELECT id, title, description, xp_reward, category, difficulty
-                       FROM quests
-                       WHERE storyline_id = ? AND storyline_step = ?""", (storyline_id, current_step))
-            step = cursor.fetchone()
-
-            if step:
-                q_id, title, description, xp_reward, actual_category, difficulty = step
-                titles.append(title)
-                descriptions.append(f"*{description}")
-                total_xp += xp_reward
-                main_q_id += f"{q_id}_"
-                main_category = actual_category
-                main_difficulty = difficulty
+        q_id, title, description, xp_reward, actual_category, difficulty = step
         conn.close()
-
-        if not titles:
-            return None
         
-        combined_title = " / ".join(titles)
-        combined_description = "\n".join(descriptions)
-
-        numbers = re.findall(r'\d+', combined_description)
+        numbers = re.findall(r'\d+', description)
         target_value = int(numbers[0]) if numbers else 1
-        
 
         return Quest(
-            id=f"storyline_{main_q_id}", # string unic
-            title=f"Active adventures: {combined_title}",
-            description=combined_description,
-            xp_reward=total_xp,
-            category="storyline",  # lasam storyline ca sa stie fronted ca vrem mov 
-            difficulty=main_difficulty,
-            quest_type=main_category,
+            id=f"storyline_{q_id}",
+            title=title,
+            description=description,
+            xp_reward=xp_reward,
+            category="storyline",
+            difficulty=difficulty,
+            quest_type=actual_category,
             target=target_value,
-            storyline_id=rows[0][0],  # luam storyline_id din primul quest activ (daca sunt mai multe, e ok sa fie acelasi)
-            storyline_step=rows[0][1]  # luam current_step din primul quest activ (daca sunt mai multe, e ok sa fie acelasi)
+            storyline_id=storyline_id,
+            storyline_step=current_step
         )
+
 
     @strawberry.field
     def get_replacement_quest(self, exclude_types: list[str]) -> Optional[Quest]:
@@ -543,19 +527,43 @@ class Mutation:
         )
     
     @strawberry.mutation
-    def start_storyline(self, user_id: int, storyline_id:int) -> bool:
+    def start_storyline(self, user_id: int, storyline_id: int) -> bool:
+        import sqlite3
         conn = sqlite3.connect("lifequest.db")
         cursor = conn.cursor()
+        
         try:
-            cursor.execute("""INSERT OR IGNORE INTO user_storylines (user_id, storyline_id, current_step) VALUES (?, ?, 1)""", (user_id, storyline_id))
+            # 1. Biztonsági játék: Kitöröljük a felhasználó ESETLEGESEN korábbi beragadt sorait ebből a táblából
+            cursor.execute("DELETE FROM user_storylines WHERE user_id = ?", (user_id,))
+            
+            # 2. Tisztán, frissen beszúrjuk az új történetszálat az 1. lépéssel
+            cursor.execute("""
+                INSERT INTO user_storylines (user_id, storyline_id, current_step) 
+                VALUES (?, ?, 1)
+            """, (user_id, storyline_id))
+                
             conn.commit()
-            return True
+            success = True
         except Exception as e:
-            print(f"Error starting storyline: {e}")
-            return False
+            print(f"Database error in start_storyline: {e}")
+            success = False
         finally:
             conn.close()
             
+        return success
+
+    @strawberry.mutation
+    def advance_storyline_step(self, user_id: int) -> bool:
+        import sqlite3
+        conn = sqlite3.connect("lifequest.db")
+        cursor = conn.cursor()
+        cursor.execute(""" UPDATE user_storylines
+                       SET current_step = current_step + 1
+                          WHERE user_id = ?""", (user_id,))
+        conn.commit()
+        conn.close()
+        return True
+
     @strawberry.mutation
     def update_avatar(self, user_id: int, avatar: str) -> bool:
         conn = sqlite3.connect("lifequest.db")

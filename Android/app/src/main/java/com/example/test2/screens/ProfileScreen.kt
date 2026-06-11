@@ -280,37 +280,34 @@ fun ProfileScreen(
                 }
             } else {
 
-                activeStorylineQuest?.let { storylineQuest ->
+                activeStorylineQuest?.let { quest ->
                     item {
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            ),
-                            border = BorderStroke(2.5.dp, Color(0xFF9C27B0))
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("📖 ${storylineQuest.title}", style = MaterialTheme.typography.titleMedium)
-                                    Text(
-                                        "+${storylineQuest.xpReward} XP",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                                Spacer(Modifier.height(4.dp))
-                                Text(storylineQuest.description, style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
+                        QuestBanner(
+                            quest = quest,
+                            questViewModel = questViewModel,
+                            authViewModel = authViewModel,
+                            isForged = false // Nem forged, hanem storyline
+                        )
                     }
                 }
+
+                items(forgedQuests) { quest ->
+                    QuestBanner(
+                        quest = quest,
+                        questViewModel = questViewModel,
+                        authViewModel = authViewModel,
+                        isForged = true
+                    )
+                }
+                items(activeQuests) { quest ->
+                    QuestBanner(
+                        quest = quest,
+                        questViewModel = questViewModel,
+                        authViewModel = authViewModel,
+                        isForged = false
+                    )
+                }
+            }
 
                 items(forgedQuests) { quest ->
                     QuestBanner(
@@ -399,7 +396,7 @@ fun ProfileScreen(
         }
 
     }
-}
+
 data class Avatar(
     val id: String,
     val drawable: Int

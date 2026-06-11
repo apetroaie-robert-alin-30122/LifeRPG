@@ -22,3 +22,23 @@ query getActiveStorylineQuest($userId: Int!) {
         target
     }
 }
+
+mutation AdvanceStorylineStep($userId: Int!) {
+    advanceStorylineStep(userId: $userId)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

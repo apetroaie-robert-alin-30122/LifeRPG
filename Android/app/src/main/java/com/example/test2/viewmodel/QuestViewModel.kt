@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import com.example.test2.GetRandomQuestsQuery
 import com.example.test2.GetReplacementQuestQuery
 import com.apollographql.apollo.api.Optional
+import com.example.test2.AdvanceStorylineStepMutation
 import com.example.test2.ForgeQuestMutation
 import com.example.test2.GetActiveStorylineQuestQuery
 import com.example.test2.GetStorylinesQuery
@@ -166,6 +167,24 @@ class QuestViewModel : ViewModel() {
                 }
             }catch (e: Exception) {
                 e.printStackTrace()
+            }
+        }
+    }
+
+    fun advanceStoryline(userId: Int, onResult: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                // Közvetlenül az Apollo Client segítségével indítjuk el a mutációt
+                val response = ApolloClientInstance.client
+                    .mutation(AdvanceStorylineStepMutation(userId = userId))
+                    .execute()
+
+                // Ha a szerver sikeresen visszatért és a mutáció eredménye true
+                if (response.data?.advanceStorylineStep == true) {
+                    onResult() // Lefuttatjuk a felület frissítését (onResult callback)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("QuestViewModel", "Error advancing storyline", e)
             }
         }
     }

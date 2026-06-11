@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -130,14 +131,21 @@ fun QuestBanner(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        colors = if (isForged) CardDefaults.cardColors(
+        colors = if (quest.category == "storyline"){
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        } else if (isForged) CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         ) else CardDefaults.cardColors(),
-        border = if (isForged) BorderStroke(
+        border = if (quest.category == "storyline") {
+            BorderStroke(2.5.dp, Color(0xFF9C27B0))
+        } else if (isForged) BorderStroke(
             2.dp, MaterialTheme.colorScheme.secondary
         ) else null,
         onClick = {
             when {
+                quest.category == "storyline" -> {
+                    showCompleteDialog = true
+                }
                 isComplete && !isForged -> showStartDialog = true
                 isComplete && isForged -> { /* forged quests cannot be restarted */ }
                 isActive && isPhysical -> { }
@@ -250,25 +258,43 @@ fun QuestBanner(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    showCompleteDialog = false
-                    if (quest.requiresInput) {
-                        questViewModel.saveInputs(
-                            quest.id,
-                            inputValues.mapValues { it.value.value }
-                        )
+                    val userId = authViewModel.token.value?.toIntOrNull()
+                    if (userId != null) {
+                        if (quest.category == "storyline") {
+                            authViewModel.completeQuestAndAwardXP(
+                                quest = quest,
+                                questViewModel = questViewModel
+                            )
+                            questViewModel.advanceStoryline(userId) {
+                                questViewModel.fetchActiveStorylineQuest(userId)
+                                showCompleteDialog = false
+                            }
+                        } else {
+                            if (quest.requiresInput) {
+                                questViewModel.saveInputs(
+                                    quest.id,
+                                    inputValues.mapValues { it.value.value }
+                                )
+                            }
+                            if (quest.type == QuestType.PHOTO) {
+                                questViewModel.saveInputs(
+                                    quest.id,
+                                    mapOf("photoUri" to (photoUri?.toString() ?: ""))
+                                )
+                            }
+                            questViewModel.completeQuest(quest.id)
+                            authViewModel.completeQuestAndAwardXP(
+                                quest = quest,
+                                questViewModel = questViewModel
+                            )
+                            showCompleteDialog = false
+                            photoCaptured = false
+                        }
+                    } else {
+                        // Biztonsági mentés, ha nincs userId
+                        showCompleteDialog = false
+                        photoCaptured = false
                     }
-                    if (quest.type == QuestType.PHOTO) {
-                        questViewModel.saveInputs(
-                            quest.id,
-                            mapOf("photoUri" to (photoUri?.toString() ?: ""))
-                        )
-                    }
-                    questViewModel.completeQuest(quest.id)
-                    authViewModel.completeQuestAndAwardXP(
-                        quest = quest,
-                        questViewModel = questViewModel
-                    )
-                    photoCaptured = false
                 }) { Text("Complete") }
             },
             dismissButton = {

@@ -15,6 +15,7 @@ type Mutation {
     forgeQuest(userId: Int!, title: String!, questType: String!, target: Int!, targetLabel: String): Quest
     startStoryline(userId: Int!, storylineId: Int!): Boolean!
     updateAvatar(userId: Int!, avatar: String!): Boolean!
+    advanceStorylineStep(userId: Int!): Boolean!
 }
 
 type UserProfile {
