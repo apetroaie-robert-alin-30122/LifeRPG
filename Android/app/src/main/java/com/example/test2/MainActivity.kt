@@ -67,7 +67,8 @@ class MainActivity : ComponentActivity() {
                     composable("profile") {
                         ProfileScreen(
                             authViewModel = viewModel,
-                            questViewModel = questViewModel
+                            questViewModel = questViewModel,
+                            navController = navController
                         )
                     }
                     composable("completed") {

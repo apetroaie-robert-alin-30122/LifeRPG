@@ -24,13 +24,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import com.example.test2.R
-
+import androidx.navigation.NavController
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ProfileScreen(
     authViewModel: AuthViewModel,
-    questViewModel: QuestViewModel
+    questViewModel: QuestViewModel,
+    navController: NavController
 ) {
     val profile by authViewModel.profile.collectAsState()
     val leveledUp by authViewModel.leveledUp.collectAsState()
@@ -72,32 +73,70 @@ fun ProfileScreen(
             contentPadding = PaddingValues(vertical = 24.dp)
         ) {
             item {
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                ) {
+
+                    Button(
+                        onClick = {
+                            authViewModel.logout()
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true}
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        ),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(top = 4.dp)
+                    ) {
+                        Text("Log Off", style = MaterialTheme.typography.labelSmall)
+                    }
+
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Image(
+                            painter = painterResource(
+                                id = avatarToDrawable(profile!!.avatar)
+                            ),
+                            contentDescription = "Profile Avatar",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .size(136.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable {
+                                    showAvatarDialog = true
+                                }
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+
+                        Text(
+                            profile!!.username,
+                            style = MaterialTheme.typography.headlineLarge
+                        )
+                    }
+                }
+            }
+
+
+            item {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Image(
-                        painter = painterResource(
-                            id = avatarToDrawable(profile!!.avatar)
-                        ),
-                        contentDescription = "Profile Avatar",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .size(136.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable {
-                                showAvatarDialog = true
-                            }
-                    )
-
-                    Spacer(Modifier.height(12.dp))
-
-                    Text(
-                        profile!!.username,
-                        style = MaterialTheme.typography.headlineLarge
-                    )
                     Spacer(Modifier.height(8.dp))
                     Text("Level ${profile!!.level}", style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.height(8.dp))
@@ -183,7 +222,6 @@ fun ProfileScreen(
                         }
                     }
 
-                    // Show forge dialog:
                     if (showForgeDialog) {
                         ForgeQuestDialog(
                             onDismiss = { showForgeDialog = false },
@@ -198,9 +236,7 @@ fun ProfileScreen(
                     if (showStorylineDialog) {
                         AlertDialog(
                             onDismissRequest = { showStorylineDialog = false },
-                            title = {
-                                Text("Select your next adventure!")
-                            },
+                            title = { Text("Select your next adventure!") },
                             text = {
                                 Column(modifier = Modifier.fillMaxWidth()) {
                                     if (storylines.isEmpty()) {
@@ -214,10 +250,7 @@ fun ProfileScreen(
                                             onClick = {
                                                 val userId = token?.toIntOrNull()
                                                 if (userId != null) {
-                                                    questViewModel.startStoryline(
-                                                        userId,
-                                                        storyline.id
-                                                    ) {
+                                                    questViewModel.startStoryline(userId, storyline.id) {
                                                         showStorylineDialog = false
                                                         questViewModel.fetchActiveStorylineQuest(userId)
                                                     }
@@ -240,7 +273,6 @@ fun ProfileScreen(
                             }
                         )
                     }
-
                     Spacer(Modifier.height(8.dp))
                 }
             }
@@ -279,14 +311,13 @@ fun ProfileScreen(
                     }
                 }
             } else {
-
                 activeStorylineQuest?.let { quest ->
                     item {
                         QuestBanner(
                             quest = quest,
                             questViewModel = questViewModel,
                             authViewModel = authViewModel,
-                            isForged = false // Nem forged, hanem storyline
+                            isForged = false
                         )
                     }
                 }
@@ -299,24 +330,7 @@ fun ProfileScreen(
                         isForged = true
                     )
                 }
-                items(activeQuests) { quest ->
-                    QuestBanner(
-                        quest = quest,
-                        questViewModel = questViewModel,
-                        authViewModel = authViewModel,
-                        isForged = false
-                    )
-                }
-            }
 
-                items(forgedQuests) { quest ->
-                    QuestBanner(
-                        quest = quest,
-                        questViewModel = questViewModel,
-                        authViewModel = authViewModel,
-                        isForged = true
-                    )
-                }
                 items(activeQuests) { quest ->
                     QuestBanner(
                         quest = quest,
@@ -327,75 +341,60 @@ fun ProfileScreen(
                 }
             }
         }
-        if (showAvatarDialog) {
-            AlertDialog(
-                onDismissRequest = { showAvatarDialog = false },
-                title = {
-                    Text("Choose Avatar")
-                },
-                text = {
-                    Column {
+    }
 
-                        AVAILABLE_AVATARS.chunked(3).forEach { rowAvatars ->
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
-
-                                rowAvatars.forEach { avatar ->
-
-                                    Card(
+    if (showAvatarDialog) {
+        AlertDialog(
+            onDismissRequest = { showAvatarDialog = false },
+            title = { Text("Choose Avatar") },
+            text = {
+                Column {
+                    AVAILABLE_AVATARS.chunked(3).forEach { rowAvatars ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            rowAvatars.forEach { avatar ->
+                                Card(
+                                    modifier = Modifier
+                                        .width(90.dp)
+                                        .padding(4.dp),
+                                    onClick = {
+                                        authViewModel.updateAvatar(avatar.id)
+                                        showAvatarDialog = false
+                                    }
+                                ) {
+                                    Column(
                                         modifier = Modifier
-                                            .width(90.dp)
-                                            .padding(4.dp),
-                                        onClick = {
-                                            authViewModel.updateAvatar(avatar.id)
-                                            showAvatarDialog = false
-                                        }
+                                            .fillMaxWidth()
+                                            .padding(8.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(8.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally
-                                        ) {
-
-                                            Image(
-                                                painter = painterResource(avatar.drawable),
-                                                contentDescription = avatar.id,
-                                                modifier = Modifier.size(64.dp)
-                                            )
-
-                                            Spacer(Modifier.height(4.dp))
-
-                                            Text(
-                                                avatar.id.replaceFirstChar {
-                                                    it.uppercase()
-                                                },
-                                                style = MaterialTheme.typography.labelSmall
-                                            )
-
-                                            if (avatar.id == profile!!.avatar) {
-                                                Text(
-                                                    "✓",
-                                                    style = MaterialTheme.typography.labelSmall
-                                                )
-                                            }
+                                        Image(
+                                            painter = painterResource(avatar.drawable),
+                                            contentDescription = avatar.id,
+                                            modifier = Modifier.size(64.dp)
+                                        )
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            avatar.id.replaceFirstChar { it.uppercase() },
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                        if (avatar.id == profile!!.avatar) {
+                                            Text("✓", style = MaterialTheme.typography.labelSmall)
                                         }
                                     }
                                 }
                             }
-
-                            Spacer(Modifier.height(8.dp))
                         }
+                        Spacer(Modifier.height(8.dp))
                     }
-                },
-                confirmButton = {}
-            )
-        }
-
+                }
+            },
+            confirmButton = {}
+        )
     }
+}
 
 data class Avatar(
     val id: String,
@@ -408,8 +407,8 @@ val AVAILABLE_AVATARS = listOf(
     Avatar("Brian", R.drawable.brian),
     Avatar("Mothman", R.drawable.mothman),
     Avatar("Lilienne", R.drawable.netpicker)
-
 )
+
 fun avatarToDrawable(avatar: String): Int {
     return AVAILABLE_AVATARS
         .find { it.id == avatar }

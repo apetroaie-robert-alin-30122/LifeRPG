@@ -91,6 +91,10 @@ class AuthViewModel : ViewModel() {
         }
     }
 
+    fun logout() {
+        viewModelScope.launch { _token.value = null }
+    }
+
     fun register(email: String, password: String, username: String) {
         viewModelScope.launch {
             val response = ApolloClientInstance.client
