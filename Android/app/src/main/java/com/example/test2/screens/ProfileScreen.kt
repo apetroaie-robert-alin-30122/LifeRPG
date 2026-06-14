@@ -406,8 +406,22 @@ val AVAILABLE_AVATARS = listOf(
     Avatar("Brad", R.drawable.brad),
     Avatar("Brian", R.drawable.brian),
     Avatar("Mothman", R.drawable.mothman),
-    Avatar("Lilienne", R.drawable.netpicker)
-)
+    Avatar("Aries", R.drawable.capri),
+    Avatar("Astronaut", R.drawable.astro),
+    Avatar("Boy", R.drawable.boi),
+    Avatar("Criminal", R.drawable.goose),
+    Avatar("Sadie", R.drawable.sadie),
+    Avatar("Oz", R.drawable.oz),
+    Avatar("Vicky", R.drawable.vicky),
+    Avatar("Great Profile Pic", R.drawable.best_art),
+    Avatar("Calculester", R.drawable.calculester),
+    Avatar("Crypto", R.drawable.tech),
+    Avatar("Zoe", R.drawable.zoe),
+    Avatar("Zorrito", R.drawable.zorrito)
+
+
+
+    )
 
 fun avatarToDrawable(avatar: String): Int {
     return AVAILABLE_AVATARS
